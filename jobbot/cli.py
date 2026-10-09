@@ -124,7 +124,33 @@ def _fetch_description_from_url(url: str) -> str:
     if not url:
         return ""
     try:
+        import ipaddress
+        import socket
         import requests
+        p = urllib.parse.urlparse(url)
+        if p.scheme not in {"http", "https"} or not p.hostname:
+            return ""
+
+        try:
+            # Resolve all addresses and require them to be globally routable.
+            infos = socket.getaddrinfo(p.hostname, None)
+            if not infos:
+                return ""
+            for info in infos:
+                ip_s = info[4][0]
+                ip = ipaddress.ip_address(ip_s)
+                if (
+                    ip.is_private
+                    or ip.is_loopback
+                    or ip.is_link_local
+                    or ip.is_multicast
+                    or ip.is_reserved
+                    or ip.is_unspecified
+                ):
+                    return ""
+        except Exception:
+            return ""
+
         resp = requests.get(
             url,
             timeout=12,
