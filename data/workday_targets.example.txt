@@ -1,0 +1,10 @@
+# Workday Tenant Targets
+# Format: tenant,board,display_name[,wd_host]
+# One per line. Lines beginning with # are ignored.
+# Example URL:
+#   https://example.wd5.myworkdayjobs.com/Careers
+# yields:
+#   example,Careers,Example Global,wd5
+
+acme,Careers,Acme Corp,wd1
+pinnacle,Careers,Pinnacle Systems,wd5

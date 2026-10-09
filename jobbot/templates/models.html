@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>AI Model</h1>
+<p>Active: <strong>{{ current_model or "(none)" }}</strong> ({{ current_provider }})</p>
+
+<form method="post" action="{{ url_for('models_set') }}">
+  <label for="selection">Choose model</label>
+  <select id="selection" name="selection">
+    {% set ns = namespace(group=None) %}
+    {% for r in rows %}
+      {% if r.group != ns.group %}
+        {% if ns.group is not none %}</optgroup>{% endif %}
+        <optgroup label="{{ r.group }}">
+        {% set ns.group = r.group %}
+      {% endif %}
+      <option value="{{ r.provider }}::{{ r.model }}"
+        {% if r.current %}selected{% endif %}
+        {% if not r.available %}disabled{% endif %}>
+        {{ r.model }}{% if not r.available %} &#8212; {{ r.reason }}{% endif %}
+      </option>
+    {% endfor %}
+    {% if ns.group is not none %}</optgroup>{% endif %}
+  </select>
+  <button type="submit">Set active model</button>
+</form>
+
+<h2>Pull a local Ollama model</h2>
+<form method="post" action="{{ url_for('models_pull') }}">
+  <input type="text" name="model_name" placeholder="e.g. llama3.3:70b" />
+  <button type="submit">Pull</button>
+</form>
+<pre id="pull-log">{{ pull.lines | join("\n") }}</pre>
+
+<script>
+async function poll() {
+  try {
+    const r = await fetch("{{ url_for('models_pull_status') }}");
+    const d = await r.json();
+    document.getElementById("pull-log").textContent = (d.lines || []).join("\n");
+    if (d.running) setTimeout(poll, 1500);
+  } catch (e) {}
+}
+{% if pull.running %}poll();{% endif %}
+</script>
+{% endblock %}

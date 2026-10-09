@@ -1,0 +1,9 @@
+# Locations to match jobs against. One per line.
+# 'remote' and 'hybrid' include respective flexible positions.
+# Leave empty to match anywhere.
+
+Boston, MA
+Cambridge, MA
+New York, NY
+remote
+hybrid

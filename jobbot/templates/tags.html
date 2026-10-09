@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Tags — JobBot{% endblock %}
+{% block content %}
+<h1>Scrape Tags</h1>
+<p class="meta">Tags / keywords the scrapers query for. One per line or comma-separated. Saved to <code>data/user_tags.txt</code> and applied on the next scrape.</p>
+
+<form method="post" class="filter-form" style="flex-direction:column; align-items:stretch">
+  <label>Tags
+    <textarea name="tags" rows="14" style="width:100%; background:var(--bg-elev); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:10px; font-family:ui-monospace,monospace; font-size:13px">{{ raw_text }}</textarea>
+  </label>
+  <p class="meta" style="margin-top:6px">
+    Tips:
+    <ul style="margin-top:4px">
+      <li>Each tag is queried against every job board (LinkedIn, Indeed, Google Jobs, Workday, etc.).</li>
+      <li>More tags = broader coverage but slower scrapes.</li>
+      <li>Save an empty file to fall back to <code>SEARCH_KEYWORDS</code> from <code>.env</code>.</li>
+    </ul>
+  </p>
+  <div style="margin-top:10px; display:flex; gap:10px">
+    <button class="btn primary">Save tags</button>
+    <a class="btn" href="{{ url_for('index') }}">Cancel</a>
+  </div>
+</form>
+
+<h2 style="margin-top:24px">Current effective tags</h2>
+<div class="loc-chips" style="margin:0">
+  {% for t in current %}<span class="loc-chip">{{ t }}</span>{% else %}<span class="meta">(none — using .env baseline)</span>{% endfor %}
+</div>
+
+<h2 style="margin-top:24px">.env baseline (used if file is empty)</h2>
+<pre>{{ baseline | join(", ") }}</pre>
+{% endblock %}

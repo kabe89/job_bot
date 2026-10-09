@@ -1,0 +1,102 @@
+# ==============================================================================
+# JobBot Root .gitignore - Zero-Leakage Privacy Protection
+# ==============================================================================
+
+# Python runtime and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE and editor settings
+.idea/
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test & coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Environment files and credentials
+.env
+.env.local
+.env.*.local
+config.yaml
+
+# Local database and state files
+*.db
+*.db-*
+*.db.bak*
+*.db.autobak*
+
+# Private user data files in data/
+data/jobbot.db*
+data/resume_facts.json
+data/candidate_profile.json
+data/profile_context.py
+data/user_prefs.json
+data/companies.md
+data/ats_targets.txt
+data/workday_targets.txt
+data/user_locations.txt
+data/user_tags.txt
+data/workday_accounts.json
+data/workday_accounts.json.bak*
+data/answer_bank.json*
+data/answer_memory.json*
+data/skill_embeddings_cache.json*
+data/discovered_pending.json*
+data/base_resume.*
+data/profile.md*
+data/profiles/
+data/*.log
+
+# Whitelist template files in data/
+!data/.gitignore
+!data/*.example.*
+!data/resume_template.md
+
+# Generated outputs & browser traces
+output/
+recon/
+logs/
+*.log
+
+# Personal documents
+*.pdf
+*.docx
+*.pptx
+My Information.txt
+MY_SKILLS*.md
+
+# Captured ATS HTML test fixtures
+tests/fixtures/*.html
+tests/fixtures/**/*.html

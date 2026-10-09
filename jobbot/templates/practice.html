@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Practice - {{ job.title }} @ {{ job.company }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Mock interview - {{ job.title }} @ {{ job.company }}</h1>
+  <p class="muted">
+    Mode: <strong>{{ mode }}</strong>
+    {% if mode == 'contact' and contact %} - interviewer: {{ contact.name }}{% endif %}
+  </p>
+  <a class="btn" href="{{ url_for('interview', job_id=job.id) }}">Back to prep pack</a>
+</div>
+
+<div id="chat" class="practice-chat" data-session="{{ session_id }}">
+  {% for r in rows %}
+    <div class="practice-turn{% if r.parent_idx is not none %} practice-followup{% endif %}">
+      <div class="practice-q">
+        {{ r.question }}
+        {% if r.grounded_in %}<span class="chip">based on: {{ r.grounded_in }}</span>{% endif %}
+      </div>
+      {% if r.answer %}
+        <div class="practice-a">{{ r.answer }}</div>
+        {% if r.score is not none %}
+          <div class="practice-score" title="{{ r.rubric }}">Score: {{ r.score }}/5</div>
+        {% endif %}
+        {% if r.critique %}<div class="practice-critique">{{ r.critique }}</div>{% endif %}
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+
+{% if open_session %}
+  <form id="answer-form" class="practice-form">
+    <input type="hidden" id="turn-id"
+           value="{{ rows[-1].turn_id if rows and not rows[-1].answer else '' }}">
+    <textarea id="answer" rows="6" placeholder="Your answer..."></textarea>
+    <div class="row">
+      <button type="submit" class="btn primary">Submit answer</button>
+      <button type="button" id="end-btn" class="btn">End session</button>
+    </div>
+    <div id="status" class="muted"></div>
+  </form>
+{% else %}
+  <div class="panel">
+    <h2>Session summary{% if overall is not none %} - {{ overall }}/5{% endif %}</h2>
+    {{ summary_html|safe }}
+  </div>
+{% endif %}
+
+<script>
+(function () {
+  const chat = document.getElementById('chat');
+  const form = document.getElementById('answer-form');
+  if (!form) return;
+  const sid = chat.dataset.session;
+  const turnInput = document.getElementById('turn-id');
+  const answerBox = document.getElementById('answer');
+  const status = document.getElementById('status');
+
+  function addQuestion(q) {
+    const wrap = document.createElement('div');
+    wrap.className = 'practice-turn' + (q.parent_idx !== null ? ' practice-followup' : '');
+    const el = document.createElement('div');
+    el.className = 'practice-q';
+    el.textContent = q.question;
+    if (q.grounded_in) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = 'based on: ' + q.grounded_in;
+      el.appendChild(chip);
+    }
+    wrap.appendChild(el);
+    chat.appendChild(wrap);
+    turnInput.value = q.turn_id;
+  }
+
+  function addAnswer(text, body) {
+    const last = chat.lastElementChild;
+    const a = document.createElement('div');
+    a.className = 'practice-a';
+    a.textContent = text;
+    last.appendChild(a);
+    if (body.score !== null) {
+      const s = document.createElement('div');
+      s.className = 'practice-score';
+      s.textContent = 'Score: ' + body.score + '/5';
+      s.title = JSON.stringify(body.rubric);
+      last.appendChild(s);
+    }
+    if (body.critique) {
+      const c = document.createElement('div');
+      c.className = 'practice-critique';
+      c.textContent = body.critique;
+      last.appendChild(c);
+    }
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const text = answerBox.value.trim();
+    if (!text || !turnInput.value) return;
+    status.textContent = 'Scoring your answer...';
+    const res = await fetch('/practice/' + sid + '/answer', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({turn_id: Number(turnInput.value), answer: text})
+    });
+    const body = await res.json();
+    status.textContent = body.error || '';
+    if (body.error) return;
+    addAnswer(text, body);
+    answerBox.value = '';
+    const next = body.follow_up || body.next;
+    if (next) { addQuestion(next); }
+    else { status.textContent = 'No questions left - end the session for your summary.'; }
+  });
+
+  document.getElementById('end-btn').addEventListener('click', async function () {
+    status.textContent = 'Summarizing...';
+    await fetch('/practice/' + sid + '/end', {method: 'POST'});
+    window.location.reload();
+  });
+})();
+</script>
+{% endblock %}

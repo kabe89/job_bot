@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} — JobBot{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+  <a href="{{ url_for('index') }}" class="btn">&larr; Back to Dashboard</a>
+  <div style="display:flex;gap:8px">
+    <button class="btn" onclick="toggleEditCard()">✏️ Edit Details</button>
+    <form method="post" action="{{ url_for('star', job_id=job.id) }}" style="display:inline">
+      <button class="btn">{{ '⭐ Unstar' if job.starred else '☆ Star' }}</button>
+    </form>
+    <form method="post" action="{{ url_for('job_delete', job_id=job.id) }}" style="display:inline"
+          onsubmit="return confirm('Are you sure you want to permanently delete Job #{{ job.id }} ({{ job.title }} @ {{ job.company }})? This will also remove any generated applications.');">
+      <button class="btn" style="border-color:var(--err);color:var(--err)">🗑 Delete</button>
+    </form>
+  </div>
+</div>
+
+<h1>{{ job.title }}</h1>
+<p class="meta">
+  <b>{{ job.company }}</b> · {{ job.location or 'Location not specified' }}
+  {% if job.salary %} · <span style="color:var(--ok)">{{ job.salary }}</span>{% endif %}
+  · <span class="tag">{{ job.source }}</span>
+  · Status: <span class="status status-{{ job.status }}">{{ job.status }}</span>
+  · Match Score: <b>{{ "%.2f"|format(job.match_score) }}</b>
+</p>
+
+<!-- Quick Action Toolbar -->
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px">
+  <a class="btn" href="{{ url_for('chat_page', job_id=job.id) }}" style="border-color:var(--accent);font-weight:600">🤖 AI Evaluate & Chat</a>
+  <a class="btn primary" href="{{ job.url }}" target="_blank" rel="noopener">Open Original Posting ↗</a>
+  <form method="post" action="{{ url_for('tailor_offline_route', job_id=job.id) }}" style="display:inline">
+    <button class="btn" style="border-color:var(--accent);font-weight:600" title="Deterministically reorder verified skills with zero AI calls (Word .docx + Markdown)">⚡ Tailor Offline (Zero AI)</button>
+  </form>
+  <form method="post" action="{{ url_for('tailor', job_id=job.id) }}" style="display:inline">
+    <button class="btn primary">Tailor with AI</button>
+  </form>
+  <a class="btn" href="{{ url_for('tailor_studio', job_id=job.id) }}" style="border-color:var(--accent2);color:var(--accent2);font-weight:700" title="Open interactive 3-panel Tailoring Studio with Strategic Angles and Bullet Polisher">🎨 Tailoring Studio</a>
+  <a class="btn" href="{{ url_for('apply_kit', job_id=job.id) }}">📋 Apply Kit</a>
+  <a class="btn" href="{{ url_for('launch_copilot_route', job_id=job.id) }}" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:600" title="Launch headed browser with JobBot Copilot pre-injected">🚀 Launch Copilot</a>
+  <a class="btn" href="{{ url_for('interview', job_id=job.id) }}">🎯 Interview Prep</a>
+  <a class="btn" href="{{ url_for('predict_job_route', job_id=job.id) }}">📈 Predict Odds</a>
+  <form method="post" action="{{ url_for('check_live_route', job_id=job.id) }}" style="display:inline">
+    <button class="btn" type="submit">🔍 Check Liveness</button>
+  </form>
+  <form method="post" action="{{ url_for('browser_apply_start', job_id=job.id) }}" style="display:inline"
+        onsubmit="return confirm('Open a real browser and fill this application on this machine?');">
+    <button class="btn" type="submit">🌐 Apply in Browser</button>
+  </form>
+</div>
+
+<!-- Edit Job Card (Toggleable) -->
+<div id="edit-job-card" style="display:none;margin-bottom:24px;border:1px solid var(--accent);border-radius:8px;padding:18px;background:var(--bg-elev)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h3 style="margin:0">Edit Job #{{ job.id }}</h3>
+    <button type="button" class="btn" onclick="toggleEditCard()">✕ Close</button>
+  </div>
+  <form method="post" action="{{ url_for('job_edit', job_id=job.id) }}">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Job Title</label>
+        <input type="text" name="title" value="{{ job.title }}" required style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px">
+      </div>
+      <div>
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Company</label>
+        <input type="text" name="company" value="{{ job.company }}" required style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Location</label>
+        <input type="text" name="location" value="{{ job.location or '' }}" style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px">
+      </div>
+      <div>
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Salary / Pay</label>
+        <input type="text" name="salary" value="{{ job.salary or '' }}" placeholder="e.g. $110k - $130k" style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px">
+      </div>
+      <div>
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Status</label>
+        <select name="status" style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px">
+          {% for s in ['new', 'starred', 'tailored', 'applied', 'interviewing', 'offer', 'rejected', 'skipped', 'expired'] %}
+          <option value="{{ s }}" {% if job.status == s %}selected{% endif %}>{{ s|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Job URL</label>
+      <input type="url" name="url" value="{{ job.url }}" style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Notes</label>
+      <textarea name="notes" rows="3" style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px">{{ job.notes or '' }}</textarea>
+    </div>
+    <div style="margin-bottom:12px">
+      <details>
+        <summary style="cursor:pointer;font-size:0.9em;color:var(--muted);margin-bottom:6px">Edit Full Description Text</summary>
+        <textarea name="description" rows="10" style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px;font-family:monospace;font-size:0.85em">{{ job.description }}</textarea>
+      </details>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button type="submit" class="btn primary">💾 Save Changes</button>
+      <button type="button" class="btn" onclick="toggleEditCard()">Cancel</button>
+    </div>
+  </form>
+</div>
+
+<!-- Inline Tailored Documents & Quick Copy -->
+{% if tailored_resume_text or cover_letter_text %}
+<div style="margin:20px 0;padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev)">
+  <h2 style="margin-top:0">Tailored Application Documents</h2>
+  {% if tailored_resume_text %}
+  <div style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <b>📄 Tailored Resume</b>
+      <div style="display:flex;gap:8px">
+        {% if resume_docx_rel %}
+        <a class="btn primary" style="font-weight:600" href="{{ url_for('download', filename=resume_docx_rel) }}">📄 Download Word (.docx)</a>
+        {% elif latest_app_id %}
+        <a class="btn primary" style="font-weight:600" href="{{ url_for('download_app_docx', app_id=latest_app_id) }}">📄 Download Word (.docx)</a>
+        {% endif %}
+        {% if resume_pdf_rel %}
+        <a class="btn" style="font-weight:600; border-color: #ef4444; color: #ef4444;" href="{{ url_for('download', filename=resume_pdf_rel) }}">📕 Download PDF (.pdf)</a>
+        {% elif latest_app_id %}
+        <a class="btn" style="font-weight:600; border-color: #ef4444; color: #ef4444;" href="{{ url_for('download_app_pdf', app_id=latest_app_id) }}">📕 Download PDF (.pdf)</a>
+        {% endif %}
+        <button class="btn" onclick="copyTextToClipboard(this, 'resume-text-holder')">📋 Copy Resume Text</button>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer;color:var(--muted);font-size:0.9em;margin-bottom:6px">Show / Hide Resume Text</summary>
+      <pre id="resume-text-holder" class="desc" style="max-height:360px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);padding:10px;border-radius:4px">{{ tailored_resume_text }}</pre>
+    </details>
+  </div>
+  {% endif %}
+
+  {% if cover_letter_text %}
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <b>✉️ Tailored Cover Letter</b>
+      <div style="display:flex;gap:8px">
+        {% if cover_letter_docx_rel %}
+        <a class="btn primary" style="font-weight:600" href="{{ url_for('download', filename=cover_letter_docx_rel) }}">📄 Download Word (.docx)</a>
+        {% endif %}
+        <button class="btn" onclick="copyTextToClipboard(this, 'cover-text-holder')">📋 Copy Cover Letter</button>
+      </div>
+    </div>
+    <details open>
+      <summary style="cursor:pointer;color:var(--muted);font-size:0.9em;margin-bottom:6px">Show / Hide Cover Letter</summary>
+      <pre id="cover-text-holder" class="desc" style="max-height:300px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);padding:10px;border-radius:4px">{{ cover_letter_text }}</pre>
+    </details>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2>Networking</h2>
+{% if contacts %}
+<table>
+  <tr><th>Name</th><th>Role</th><th>Email</th><th>LinkedIn</th><th>Draft message</th></tr>
+  {% for c in contacts %}
+  <tr>
+    <td>{{ c.name or '-' }}</td>
+    <td>{{ c.role or '-' }}</td>
+    <td>{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% else %}-{% endif %}</td>
+    <td>{% if c.linkedin %}<a href="{{ c.linkedin }}" target="_blank" rel="noopener">profile ↗</a>{% else %}-{% endif %}</td>
+    <td>
+      <button class="btn" onclick="draftMsg({{ job.id }}, {{ loop.index0 }}, 'linkedin', this)">✍ LinkedIn note</button>
+      <button class="btn" onclick="draftMsg({{ job.id }}, {{ loop.index0 }}, 'email', this)">✉ Email</button>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">No contacts found yet.</p>
+{% endif %}
+<form method="post" action="{{ url_for('job_find_contacts', job_id=job.id) }}" style="display:inline">
+  <button class="btn" onclick="this.disabled=true;this.textContent='Searching…';this.form.submit()">🔎 Find contacts</button>
+</form>
+
+{% if networking_targets %}
+<h3 style="margin-top:18px">Find people to network with on LinkedIn</h3>
+<p class="empty" style="margin:4px 0 8px">Click to open a people search in a new tab — pick a contact, then come back and use “Find contacts” or draft a message by hand.</p>
+<ul style="margin:0">
+  {% for t in networking_targets %}
+  <li><a href="{{ t.url }}" target="_blank" rel="noopener">{{ t.label }} ↗</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<div id="draft-panel" style="display:none;margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--bg-elev)">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <b id="draft-title">Drafted message</b>
+    <button class="btn" onclick="copyDraft(this)">Copy</button>
+  </div>
+  <div id="draft-subject" style="margin-top:8px;font-weight:600"></div>
+  <textarea id="draft-body" rows="10" style="width:100%;margin-top:8px;background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font:inherit"></textarea>
+</div>
+
+<h2>My notes</h2>
+<form method="post" action="{{ url_for('save_note', job_id=job.id) }}">
+  <textarea name="notes" rows="4" style="width:100%;background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font:inherit">{{ job.notes or '' }}</textarea>
+  <button class="btn primary" style="margin-top:8px">Save note</button>
+</form>
+
+<h2>Description</h2>
+<pre class="desc">{{ job.description }}</pre>
+
+<h2>Applications ({{ applications|length }})</h2>
+{% for app in applications %}
+<div class="app-card">
+  <div><b>App #{{ app.id }}</b> — status: <span class="status status-{{ app.status }}">{{ app.status }}</span>
+       — created {{ app.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+  <div style="margin:6px 0;display:flex;flex-wrap:wrap;gap:6px">
+    {% if app.tailored_resume_path %}
+    <a class="btn primary" style="padding:2px 8px;font-size:0.85em;font-weight:600" href="{{ url_for('download_app_docx', app_id=app.id) }}">📄 Resume (.docx)</a>
+    <a class="btn" style="padding:2px 8px;font-size:0.85em" href="{{ url_for('download', filename=app.tailored_resume_path.replace('\\','/')) }}">📥 Raw ({{ app.tailored_resume_path.split('.')[-1]|upper }})</a>
+    {% endif %}
+    {% if app.cover_letter_path %}
+    <a class="btn primary" style="padding:2px 8px;font-size:0.85em;font-weight:600" href="{{ url_for('download_app_cover_docx', app_id=app.id) }}">📄 Cover Letter (.docx)</a>
+    <a class="btn" style="padding:2px 8px;font-size:0.85em" href="{{ url_for('download', filename=app.cover_letter_path.replace('\\','/')) }}">📥 Cover Letter (.txt)</a>
+    {% endif %}
+  </div>
+  {% if app.ai_match_analysis %}<details><summary>AI match analysis</summary><pre>{{ app.ai_match_analysis }}</pre></details>{% endif %}
+  {% if app.status != 'sent' %}
+  <form method="post" action="{{ url_for('apply', app_id=app.id) }}" class="apply-form">
+    <input type="email" name="to_email" placeholder="Recipient email (recruiter@…)" required>
+    <textarea name="note" placeholder="Optional intro note prepended to cover letter…" rows="2"></textarea>
+    <button class="btn primary">Send Application</button>
+  </form>
+  {% else %}
+  <div>Sent {{ app.sent_at|localdt("%Y-%m-%d %H:%M") }}</div>
+  {% endif %}
+</div>
+{% else %}
+<p class="empty">No applications yet — click <b>Tailor Offline (Zero AI)</b> or <b>Tailor with AI</b> above.</p>
+{% endfor %}
+
+<script>
+function toggleEditCard() {
+  const card = document.getElementById('edit-job-card');
+  card.style.display = (card.style.display === 'none' || !card.style.display) ? 'block' : 'none';
+  if (card.style.display === 'block') {
+    card.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
+}
+
+function copyTextToClipboard(btn, elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.innerText;
+    btn.innerText = '✅ Copied!';
+    setTimeout(() => btn.innerText = orig, 1800);
+  });
+}
+
+async function draftMsg(jobId, idx, channel, btn) {
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Drafting…';
+  try {
+    const res = await fetch(`/job/${jobId}/network/${idx}?channel=${channel}`, {method: 'POST'});
+    const data = await res.json();
+    if (data.error) { alert('Draft failed: ' + data.error); return; }
+    const panel = document.getElementById('draft-panel');
+    document.getElementById('draft-title').textContent =
+      (channel === 'email') ? 'Networking email' : 'LinkedIn connection note';
+    const subj = document.getElementById('draft-subject');
+    subj.textContent = data.subject ? ('Subject: ' + data.subject) : '';
+    subj.style.display = data.subject ? 'block' : 'none';
+    document.getElementById('draft-body').value = data.body || '';
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  } catch (e) {
+    alert('Draft failed: ' + e);
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+function copyDraft(btn) {
+  const subj = document.getElementById('draft-subject').textContent;
+  const body = document.getElementById('draft-body').value;
+  const text = subj ? (subj + '\n\n' + body) : body;
+  navigator.clipboard.writeText(text).then(() => {
+    const old = btn.textContent; btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = old, 1500);
+  });
+}
+</script>
+{% endblock %}

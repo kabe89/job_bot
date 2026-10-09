@@ -1,0 +1,11 @@
+# Greenhouse & Lever Target Boards
+# Format: provider,slug
+# One per line. Lines beginning with # are ignored.
+# Find the slug in public job board URLs:
+#   boards.greenhouse.io/<slug>
+#   jobs.lever.co/<slug>
+
+greenhouse,acmecorp
+greenhouse,pinnaclesystems
+lever,datasolutions
+ashby,apexinnovations

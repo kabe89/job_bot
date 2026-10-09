@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+{% block title %}Tailoring Studio — {{ job.title }} @ {{ job.company }}{% endblock %}
+
+{% block content %}
+<div class="studio-container" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 30px;">
+
+  <!-- Studio Header & Action Toolbar -->
+  <div class="card p-3 shadow-sm" style="background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <a href="{{ url_for('index') }}" class="btn" style="padding: 4px 10px; font-size: 0.85rem;">← Board</a>
+          <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn" style="padding: 4px 10px; font-size: 0.85rem;">Job #{{ job.id }}</a>
+          <span class="status status-{{ job.status }}">{{ job.status | capitalize }}</span>
+          {% if fidelity and fidelity.ok %}
+          <span class="badge" style="background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); font-weight: 700;">
+            ✓ 100% Truthful
+          </span>
+          {% elif fidelity %}
+          <span class="badge" style="background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn);">
+            ⚠ {{ fidelity.issues|length }} Flagged Item(s)
+          </span>
+          {% endif %}
+        </div>
+        <h2 style="margin: 0; font-size: 1.35rem; color: var(--text);">
+          {{ job.title }} <span style="color: var(--muted); font-weight: 400;">@</span> <strong style="color: var(--accent2);">{{ job.company }}</strong>
+        </h2>
+      </div>
+
+      <!-- Generator Controls & Exports -->
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <!-- Targeting Angle Selector -->
+        <select id="tailor_angle" style="background: var(--bg-elev); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 0.85rem; font-weight: 500;" title="Strategic Tailoring Angle (extensible in data/strategic_angles.json)">
+          {% if strategic_angles %}
+            {% for a in strategic_angles %}
+            <option value="{{ a.id }}" {% if a.id == detected_angle %}selected{% endif %}>🎯 Angle: {{ a.label }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="balanced">🎯 Angle: Balanced Profile</option>
+            <option value="dual_pillar">🔬 Angle: Dual Translational Pillar</option>
+            <option value="protein_science">🧪 Angle: Protein Science & Purification</option>
+            <option value="computational">💻 Angle: Computational Biology & CADD</option>
+            <option value="academic_translational">🏛️ Angle: Academic / Translational R&D</option>
+          {% endif %}
+        </select>
+
+        <!-- Page Budget Selector -->
+        <div style="display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-elev);" title="Target page length & typography budgeting">
+          <label style="margin: 0; padding: 6px 10px; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 5px; border-right: 1px solid var(--border);" title="2-Page Scientific: 10pt Calibri, 0.5in margins, complete scope">
+            <input type="radio" name="page_budget" value="2-page" checked>
+            <span>📄 2-Page</span>
+          </label>
+          <label style="margin: 0; padding: 6px 10px; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="1-Page Industry: 9.5pt Calibri, 0.4in margins, condensed scope">
+            <input type="radio" name="page_budget" value="1-page">
+            <span>📄 1-Page</span>
+          </label>
+        </div>
+
+        <!-- Mode Picker -->
+        <div style="display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-elev);">
+          <label style="margin: 0; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; border-right: 1px solid var(--border);">
+            <input type="radio" name="tailor_mode" value="offline" {% if default_mode == 'offline' %}checked{% endif %}>
+            <span>⚡ Zero-AI</span>
+          </label>
+          <label style="margin: 0; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; border-right: 1px solid var(--border);">
+            <input type="radio" name="tailor_mode" value="ollama" {% if default_mode == 'ollama' or not default_mode %}checked{% endif %}>
+            <span>🧠 Local Ollama</span>
+          </label>
+          <label style="margin: 0; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+            <input type="radio" name="tailor_mode" value="cloud" {% if default_mode == 'cloud' %}checked{% endif %}>
+            <span>☁️ Cloud AI</span>
+          </label>
+        </div>
+
+        <button id="btn-generate" class="btn primary" onclick="runTailoring()" style="font-weight: 700;">
+          <span id="gen-spinner" style="display: none; margin-right: 6px;">⚡</span>
+          <span id="gen-label">⚡ Retailor Resume</span>
+        </button>
+
+        <button id="btn-save" class="btn" onclick="saveEdits()" style="border-color: var(--ok); color: var(--ok);">
+          💾 Save & Update Word Doc
+        </button>
+
+        {% if app and app.tailored_resume_path and app.tailored_resume_path.endswith('.docx') %}
+        <a href="/download/app/{{ app.id }}/docx" class="btn" style="background: var(--panel); border-color: var(--accent); color: var(--accent);">
+          📥 Resume (.docx)
+        </a>
+        {% endif %}
+
+        {% if app and app.id %}
+        <a href="/download/app/{{ app.id }}/pdf" class="btn" style="background: var(--panel); border-color: #ef4444; color: #ef4444;" title="Download submission-ready PDF rendered with high-fidelity formatting">
+          📕 Resume (.pdf)
+        </a>
+        {% endif %}
+
+        {% if app and app.cover_letter_path %}
+        <a href="/download/app/{{ app.id }}/cover-docx" class="btn" style="background: var(--panel); border-color: var(--accent2); color: var(--accent2);">
+          ✉ Cover (.docx)
+        </a>
+        {% endif %}
+
+        <button class="btn" onclick="copyResumeText()" title="Copy Markdown to clipboard">
+          📋 Copy
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Studio 3-Panel Split Workspace -->
+  <div style="display: flex; gap: 16px; align-items: flex-start;">
+
+    <!-- Left Panel: Target Job & Skill Alignment (28% width) -->
+    <div style="flex: 0 0 28%; max-width: 28%; display: flex; flex-direction: column; gap: 14px;">
+      <!-- Skill Match Card -->
+      <div class="card p-3" style="background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);">
+            🎯 ATS Keyword Alignment
+          </span>
+          <span class="badge" style="background: {% if skills_analysis.match_percentage >= 70 %}var(--ok){% elif skills_analysis.match_percentage >= 40 %}var(--warn){% else %}var(--muted){% endif %}; color: #000; font-weight: 700;">
+            {{ skills_analysis.match_percentage }}%
+          </span>
+        </div>
+        <div style="width: 100%; height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 14px;">
+          <div style="width: {{ skills_analysis.match_percentage }}%; height: 100%; background: {% if skills_analysis.match_percentage >= 70 %}var(--ok){% elif skills_analysis.match_percentage >= 40 %}var(--warn){% else %}var(--muted){% endif %};"></div>
+        </div>
+
+        <!-- Section Placement Heatmap -->
+        {% if skills_analysis.section_heatmap %}
+        <div style="margin-bottom: 12px; padding: 6px 8px; background: var(--bg-elev); border-radius: 4px; font-size: 0.75rem;">
+          <div style="font-weight: 700; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; font-size: 0.7rem;">Placement Heatmap:</div>
+          <div style="display: flex; justify-content: space-between; gap: 4px;">
+            <span>Summary: <strong style="color: var(--accent);">{{ skills_analysis.section_heatmap.summary|length }}</strong></span>
+            <span>Competencies: <strong style="color: var(--ok);">{{ skills_analysis.section_heatmap.competencies|length }}</strong></span>
+            <span>Experience: <strong style="color: var(--accent2);">{{ skills_analysis.section_heatmap.experience|length }}</strong></span>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Matched Verified Skills (Green) -->
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 0.78rem; font-weight: 700; color: var(--ok); margin-bottom: 6px; display: flex; justify-content: space-between;">
+            <span>✓ Matched Verified Competencies</span>
+            <span>({{ skills_analysis.matched_skills|length }})</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+            {% for s in skills_analysis.matched_skills %}
+            <span style="font-size: 0.75rem; padding: 2px 7px; border-radius: 4px; background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(52,211,153,0.3);" title="{{ s.category }} ({{ s.level }})">
+              {{ s.name }}
+            </span>
+            {% else %}
+            <span class="meta" style="font-size: 0.75rem;">None directly detected.</span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Transferable Adjacent Skills (Yellow) -->
+        {% if skills_analysis.transferable_skills %}
+        <div style="margin-bottom: 12px;">
+          <div style="font-size: 0.78rem; font-weight: 700; color: var(--warn); margin-bottom: 6px; display: flex; justify-content: space-between;">
+            <span>↔ Transferable Adjacent Skills</span>
+            <span>({{ skills_analysis.transferable_skills|length }})</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            {% for t in skills_analysis.transferable_skills %}
+            <div style="font-size: 0.74rem; padding: 3px 6px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); border: 1px solid rgba(251,191,36,0.3);">
+              <strong>{{ t.jd_keyword }}</strong> <span style="color: var(--text);">mapped from</span> <em>{{ t.transfer_from }}</em>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Honest Gaps (Grey / Unfilled per Rule 1) -->
+        {% if skills_analysis.honest_gaps %}
+        <div>
+          <div style="font-size: 0.78rem; font-weight: 700; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between;">
+            <span>⚪ Honest Gaps (Unfilled per Rule 1)</span>
+            <span>({{ skills_analysis.honest_gaps|length }})</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+            {% for gap in skills_analysis.honest_gaps %}
+            <span style="font-size: 0.75rem; padding: 2px 7px; border-radius: 4px; background: var(--bg-elev); color: var(--muted); border: 1px solid var(--border);" title="JD requirement absent from candidate records - left unfilled per Rule 1">
+              {{ gap }}
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+        {% elif skills_analysis.missing_keywords %}
+        <div>
+          <div style="font-size: 0.78rem; font-weight: 700; color: var(--warn); margin-bottom: 6px;">
+            ⚠ JD Terms to Emphasize ({{ skills_analysis.missing_keywords|length }}):
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+            {% for term in skills_analysis.missing_keywords %}
+            <span style="font-size: 0.75rem; padding: 2px 7px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); border: 1px solid rgba(251,191,36,0.3);">
+              {{ term }}
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Collapsible Job Description -->
+      <div class="card p-3" style="background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h4 style="margin: 0; font-size: 0.85rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px;">Job Posting Reference</h4>
+          <a href="{{ job.url }}" target="_blank" rel="noopener" class="btn" style="font-size: 0.75rem; padding: 2px 6px;">↗ View Post</a>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto; font-size: 0.82rem; line-height: 1.5; white-space: pre-wrap; color: var(--text); padding: 8px; background: var(--bg-elev); border-radius: 4px;">{{ job.description or 'No description available.' }}</div>
+      </div>
+    </div>
+
+    <!-- Center Panel: Interactive Editor & Preview (46% width) -->
+    <div style="flex: 0 0 46%; max-width: 46%; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; background: var(--panel); padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <div style="display: flex; gap: 6px;">
+          <button id="tab-editor-btn" class="btn primary" style="font-size: 0.8rem; padding: 4px 10px;" onclick="switchEditorTab('edit')">✏ Markdown Editor</button>
+          <button id="tab-preview-btn" class="btn" style="font-size: 0.8rem; padding: 4px 10px;" onclick="switchEditorTab('preview')">👁 Rendered Preview</button>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--muted);" id="char-word-counter">
+          Word count: {{ (tailored_md or '').split()|length }} words
+        </div>
+      </div>
+
+      <!-- 1-Click Bullet Polisher Toolbar -->
+      <div id="bullet-polisher-toolbar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; background: var(--panel); padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent2);">✨ Bullet Polisher:</span>
+          <button type="button" class="btn" style="padding: 2px 8px; font-size: 0.76rem;" onclick="polishSelectedBullet('action_verb')" title="Rewrite line starting with strong active lab/technical verb">⚡ Active Verb</button>
+          <button type="button" class="btn" style="padding: 2px 8px; font-size: 0.76rem;" onclick="polishSelectedBullet('quantify')" title="Clarify technical scope, constructs, and metrics without fabricating facts">📊 Quantify Scope</button>
+          <button type="button" class="btn" style="padding: 2px 8px; font-size: 0.76rem;" onclick="polishSelectedBullet('tighten')" title="Trim wordiness to fit single-line page budgets">✂️ Tighten Line</button>
+          <button type="button" class="btn" style="padding: 2px 8px; font-size: 0.76rem;" onclick="polishSelectedBullet('align_jd')" title="Align emphasis with job keywords truthfully">🎯 Align to JD</button>
+        </div>
+        <div id="polisher-status" style="font-size: 0.74rem; color: var(--muted); font-style: italic;">Select text or place cursor on bullet</div>
+      </div>
+
+      <!-- Textarea Editor -->
+      <div id="editor-container" style="background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden;">
+        <textarea id="resume-editor-text" style="width: 100%; height: calc(100vh - 240px); min-height: 520px; box-sizing: border-box; padding: 16px; border: none; outline: none; background: var(--bg-elev); color: var(--text); font-family: var(--font-mono); font-size: 0.88rem; line-height: 1.6; resize: vertical;">{{ tailored_md or base_md }}</textarea>
+      </div>
+
+      <!-- Rendered HTML Preview Container -->
+      <div id="preview-container" style="display: none; width: 100%; height: calc(100vh - 240px); min-height: 520px; box-sizing: border-box; padding: 24px; background: #fff; color: #111; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: Calibri, sans-serif; line-height: 1.5;">
+        <div id="rendered-html-body"></div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Visual Diff & Quality Guard (26% width) -->
+    <div style="flex: 0 0 26%; max-width: 26%; display: flex; flex-direction: column; gap: 14px;">
+      <!-- Truthfulness & Fidelity Status Card -->
+      <div class="card p-3" style="background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <div style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px;">
+          🛡 Truthfulness Guardrail Check
+        </div>
+        {% if fidelity and fidelity.ok %}
+        <div style="padding: 10px; border-radius: 6px; background: var(--ok-bg); color: var(--ok); font-size: 0.85rem; line-height: 1.4; border: 1px solid rgba(52,211,153,0.3);">
+          <strong>✓ 100% Verified Truthful</strong><br>
+          All dates, employers, publications, and degrees strictly match verified records in <code>resume_facts.json</code>.
+        </div>
+        {% elif fidelity %}
+        <div style="padding: 10px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); font-size: 0.85rem; line-height: 1.4; border: 1px solid rgba(251,191,36,0.3);">
+          <strong>⚠ Verification Review Needed</strong>
+          <ul style="margin: 6px 0 0 0; padding-left: 18px; font-size: 0.8rem;">
+            {% for issue in fidelity.issues %}
+            <li>{{ issue }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% else %}
+        <div class="meta" style="font-size: 0.85rem;">Fidelity audit pending first save.</div>
+        {% endif %}
+      </div>
+
+      <!-- Visual Diff vs Base Resume -->
+      <div class="card p-3" style="background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);">
+            🔍 Visual Diff vs Base Resume
+          </span>
+          <span class="meta" style="font-size: 0.75rem;">{{ diff_lines|length }} lines</span>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.75rem; background: var(--bg-elev); border-radius: 4px; padding: 6px;">
+          {% for line in diff_lines %}
+          {% if line.type == 'added' %}
+          <div style="color: var(--ok); background: rgba(52,211,153,0.1); padding: 1px 4px; border-left: 2px solid var(--ok); margin-bottom: 1px;">+ {{ line.text }}</div>
+          {% elif line.type == 'removed' %}
+          <div style="color: var(--err); background: rgba(248,113,113,0.1); padding: 1px 4px; border-left: 2px solid var(--err); margin-bottom: 1px;">- {{ line.text }}</div>
+          {% else %}
+          <div style="color: var(--muted); padding: 1px 4px;">&nbsp; {{ line.text }}</div>
+          {% endif %}
+          {% else %}
+          <div class="meta" style="padding: 10px; text-align: center;">Identical to base resume.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Marked.js CDN for client-side live markdown preview -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<script>
+function switchEditorTab(tab) {
+  const editContainer = document.getElementById('editor-container');
+  const prevContainer = document.getElementById('preview-container');
+  const editBtn = document.getElementById('tab-editor-btn');
+  const prevBtn = document.getElementById('tab-preview-btn');
+
+  if (tab === 'preview') {
+    editContainer.style.display = 'none';
+    prevContainer.style.display = 'block';
+    prevBtn.classList.add('primary');
+    editBtn.classList.remove('primary');
+
+    const md = document.getElementById('resume-editor-text').value;
+    if (window.marked) {
+      document.getElementById('rendered-html-body').innerHTML = marked.parse(md);
+    } else {
+      document.getElementById('rendered-html-body').innerText = md;
+    }
+  } else {
+    editContainer.style.display = 'block';
+    prevContainer.style.display = 'none';
+    editBtn.classList.add('primary');
+    prevBtn.classList.remove('primary');
+  }
+}
+
+function updateWordCount() {
+  const text = document.getElementById('resume-editor-text').value;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  let statusBadge = '';
+  if (words >= 450 && words <= 750) {
+    statusBadge = '<span style="color:var(--ok);font-weight:600;margin-left:6px;">✓ Optimal (1–2 page sweet spot)</span>';
+  } else if (words > 750 && words <= 900) {
+    statusBadge = '<span style="color:var(--text);margin-left:6px;">(Dense 2 pages)</span>';
+  } else if (words > 900) {
+    statusBadge = '<span style="color:var(--warn);margin-left:6px;">⚠ High word count (&gt;900 words risks page 3)</span>';
+  } else if (words > 0) {
+    statusBadge = '<span style="color:var(--muted);margin-left:6px;">(Compact / concise)</span>';
+  }
+  document.getElementById('char-word-counter').innerHTML = `Word count: <strong>${words}</strong> words ${statusBadge}`;
+}
+
+document.getElementById('resume-editor-text').addEventListener('input', updateWordCount);
+updateWordCount();
+
+function runTailoring() {
+  const mode = document.querySelector('input[name="tailor_mode"]:checked').value;
+  const angle = document.getElementById('tailor_angle') ? document.getElementById('tailor_angle').value : 'balanced';
+  const page_budget = document.querySelector('input[name="page_budget"]:checked')?.value || '2-page';
+  const btn = document.getElementById('btn-generate');
+  const spinner = document.getElementById('gen-spinner');
+  const label = document.getElementById('gen-label');
+
+  btn.disabled = true;
+  spinner.style.display = 'inline';
+  label.innerText = 'Tailoring in progress (' + mode + ')...';
+
+  fetch(`/tailor-studio/{{ job.id }}/generate`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({mode: mode, angle: angle, page_budget: page_budget})
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    label.innerText = '⚡ Retailor Resume';
+    if (data.ok) {
+      window.location.reload();
+    } else {
+      alert('Tailoring error: ' + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    label.innerText = '⚡ Retailor Resume';
+    alert('Tailoring request failed: ' + err.message);
+  });
+}
+
+function saveEdits() {
+  const content = document.getElementById('resume-editor-text').value;
+  const page_budget = document.querySelector('input[name="page_budget"]:checked')?.value || '2-page';
+  const btn = document.getElementById('btn-save');
+  const original = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = 'Saving...';
+
+  fetch(`/tailor-studio/{{ job.id }}/save`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content: content, page_budget: page_budget})
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerText = '✓ Saved!';
+    setTimeout(() => { btn.innerText = original; }, 2000);
+    if (!data.ok) {
+      alert('Save issue: ' + data.error);
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerText = original;
+    alert('Save failed: ' + err.message);
+  });
+}
+
+function polishSelectedBullet(action) {
+  const textarea = document.getElementById('resume-editor-text');
+  const statusEl = document.getElementById('polisher-status');
+  if (!textarea || !statusEl) return;
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const fullText = textarea.value;
+
+  let targetText = '';
+  let replaceStart = start;
+  let replaceEnd = end;
+
+  if (start !== end) {
+    targetText = fullText.substring(start, end).trim();
+  } else {
+    // If no text selected, find the line surrounding the cursor
+    const lineStart = fullText.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = fullText.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = fullText.length;
+    targetText = fullText.substring(lineStart, lineEnd).trim();
+    replaceStart = lineStart;
+    replaceEnd = lineEnd;
+  }
+
+  if (!targetText) {
+    statusEl.innerHTML = '<span style="color:var(--warn)">Please place cursor on a bullet line first.</span>';
+    setTimeout(() => { statusEl.innerText = 'Select text or place cursor on bullet'; }, 2500);
+    return;
+  }
+
+  const originalStatus = statusEl.innerText;
+  statusEl.innerHTML = `<span style="color:var(--accent2)">⚡ Polishing (${action})...</span>`;
+
+  fetch('/api/tailor/polish-bullet', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      bullet: targetText,
+      action: action,
+      job_id: {{ job.id }}
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok && data.result && data.result.polished) {
+      const polished = data.result.polished;
+      const before = fullText.substring(0, replaceStart);
+      const after = fullText.substring(replaceEnd);
+      textarea.value = before + polished + after;
+      textarea.selectionStart = replaceStart;
+      textarea.selectionEnd = replaceStart + polished.length;
+      textarea.focus();
+      updateWordCount();
+      statusEl.innerHTML = '<span style="color:var(--ok)">✓ Polished & Buzzword Checked!</span>';
+      setTimeout(() => { statusEl.innerText = 'Select text or place cursor on bullet'; }, 3000);
+    } else {
+      statusEl.innerHTML = `<span style="color:var(--err)">Polishing failed: ${data.error || 'Unknown error'}</span>`;
+      setTimeout(() => { statusEl.innerText = originalStatus; }, 3500);
+    }
+  })
+  .catch(err => {
+    statusEl.innerHTML = `<span style="color:var(--err)">Error: ${err.message}</span>`;
+    setTimeout(() => { statusEl.innerText = originalStatus; }, 3500);
+  });
+}
+
+function copyResumeText() {
+  const text = document.getElementById('resume-editor-text').value;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Resume markdown copied to clipboard!');
+  });
+}
+</script>
+{% endblock %}

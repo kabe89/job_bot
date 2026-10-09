@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Skills — JobBot{% endblock %}
+{% block content %}
+<h1>Verified Skills</h1>
+<p class="muted">Parsed from <code>{{ path }}</code>. Skills marked
+  Expert/Proficient/Some/Learning feed semantic matching and are emphasized
+  (truthfully) in per-job tailoring. Level <code>None</code> is ignored.</p>
+
+{% if parsed %}
+<div class="skill-chips">
+  {% for s in parsed %}
+    <span class="chip level-{{ s.level|lower }}" title="{{ s.notes }}">
+      {{ s.name }} <em>{{ s.level }}</em>
+    </span>
+  {% endfor %}
+</div>
+{% else %}
+<p class="muted">No skills parsed yet — fill the file below.</p>
+{% endif %}
+
+<form method="post">
+  <textarea name="content" rows="28" style="width:100%;font-family:monospace">{{ content }}</textarea>
+  <button class="primary" type="submit">Save skills</button>
+</form>
+{% endblock %}

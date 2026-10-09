@@ -1,0 +1,9 @@
+# Target Keyword Tags & Archetypes
+# Used by semantic scoring and search query expansion
+
+computational modeling
+data pipelines
+machine learning
+distributed systems
+python
+cloud infrastructure

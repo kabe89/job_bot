@@ -1,0 +1,637 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bar">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <h1 style="margin:0">Jobs ({{ jobs|length }} shown)</h1>
+    <div class="view-toggle" style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--bg-elev)">
+      <button id="view-mode-table-btn" class="btn active-toggle" onclick="setViewMode('table')" style="border:none;border-radius:0;padding:6px 14px;font-size:0.85rem">📋 Table</button>
+      <button id="view-mode-split-btn" class="btn" onclick="setViewMode('split')" style="border:none;border-radius:0;padding:6px 14px;font-size:0.85rem">⚡ Split Inspector</button>
+    </div>
+    <button class="btn primary" onclick="toggleQuickAddModal()">➕ Add Job</button>
+    <button class="btn" onclick="toggleShortcutsModal()" title="Keyboard shortcuts (Press ?)">⌨ Shortcuts (?)</button>
+  </div>
+  <div class="quota">Apply quota today: <b>{{ quota }}</b></div>
+</div>
+
+<section class="summary-grid">
+  <a class="summary-card stat-tile" href="{{ url_for('index', preset='today') }}">
+    <div class="sc-label">New in last 24h</div>
+    <div class="sc-value">{{ summary.new_24h }}</div>
+  </a>
+  <a class="summary-card stat-tile" href="{{ url_for('index', preset='high-match') }}">
+    <div class="sc-label">High-match (7d, in-range)</div>
+    <div class="sc-value">{{ summary.high_match }}</div>
+    <div class="gauge" style="--val: 0"></div>
+  </a>
+  <a class="summary-card stat-tile" href="{{ url_for('index', preset='remote-watchlist') }}">
+    <div class="sc-label">Watchlist hits (7d)</div>
+    <div class="sc-value">{{ summary.watchlist_recent }}</div>
+  </a>
+  <a class="summary-card stat-tile" href="{{ url_for('index', scope='all') }}">
+    <div class="sc-label">Total new (7d)</div>
+    <div class="sc-value">{{ summary.new_7d }}</div>
+  </a>
+  <a class="summary-card stat-tile" href="{{ url_for('applications') }}">
+    <div class="sc-label">Applied (7d)</div>
+    <div class="sc-value">{{ summary.applied_7d }}</div>
+  </a>
+  <a class="summary-card stat-tile" href="{{ url_for('index', preset='starred') }}">
+    <div class="sc-label">Starred</div>
+    <div class="sc-value">★ {{ counts.starred }}</div>
+  </a>
+</section>
+
+<section class="presets">
+  <span class="meta">Quick filters:</span>
+  <a class="btn {{ 'primary' if preset=='near-me' }}" href="{{ url_for('index', preset='near-me') }}">📍 Near me</a>
+  <a class="btn {{ 'primary' if preset=='remote-watchlist' }}" href="{{ url_for('index', preset='remote-watchlist') }}">🌐 Remote watchlist</a>
+  <a class="btn {{ 'primary' if preset=='today' }}" href="{{ url_for('index', preset='today') }}">⚡ Today</a>
+  <a class="btn {{ 'primary' if preset=='high-match' }}" href="{{ url_for('index', preset='high-match') }}">🎯 High match</a>
+  <a class="btn {{ 'primary' if preset=='starred' }}" href="{{ url_for('index', preset='starred') }}">⭐ Starred</a>
+  <a class="btn {{ 'primary' if preset=='warm-intros' }}" href="{{ url_for('index', preset='warm-intros', scope='all') }}">🤝 Warm intros</a>
+  <a class="btn" href="{{ url_for('index') }}">↺ Reset</a>
+</section>
+
+<div class="filters">
+  <a href="{{ url_for('index', scope='in-range') }}" class="{{ 'active' if scope=='in-range' else '' }}">
+    In range <span class="badge">{{ counts.local }}</span>
+  </a>
+  <a href="{{ url_for('index', scope='out-of-range') }}" class="{{ 'active' if scope=='out-of-range' else '' }}">
+    Out of range <span class="badge">{{ counts.out_of_range }}</span>
+  </a>
+  <a href="{{ url_for('index', scope='anywhere') }}" class="{{ 'active' if scope=='anywhere' else '' }}">
+    🌎 Anywhere <span class="badge">{{ counts.total }}</span>
+  </a>
+  <a href="{{ url_for('index', scope='all') }}" class="{{ 'active' if scope=='all' else '' }}">
+    All <span class="badge">{{ counts.total }}</span>
+  </a>
+  <a href="{{ url_for('index', scope='expired') }}" class="{{ 'active' if scope=='expired' else '' }}">
+    Expired <span class="badge">{{ counts.expired }}</span>
+  </a>
+  <a href="{{ url_for('index', remote_ok='on', scope='all') }}">Remote ok <span class="badge">{{ counts.remote }}</span></a>
+</div>
+
+<div class="loc-chips">
+  <span class="meta">Locations:</span>
+  {% if anywhere %}
+    <span class="loc-chip anywhere">🌎 Anywhere</span>
+  {% else %}
+    {% for loc in effective_locations %}
+      <span class="loc-chip">{{ loc }}</span>
+    {% endfor %}
+    {% if radius_miles and radius_miles > 0 %}
+      <span class="loc-chip radius">↔ {{ radius_miles|int }} mi</span>
+    {% endif %}
+  {% endif %}
+  <a class="btn" href="{{ url_for('locations_route') }}">✏ Edit locations</a>
+  <form method="get" class="inline-loc-add">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    <input type="text" name="locations" placeholder="quick override: Rockville MD, Baltimore, Remote…" value="">
+    <label class="radius-pick">
+      Radius
+      <select name="radius_miles">
+        {% for r in [0, 25, 50, 75, 100, 150, 250, 500] %}
+          <option value="{{ r }}" {{ 'selected' if radius_miles|int == r }}>{{ r }} mi{{ ' (off)' if r == 0 }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn">Apply</button>
+  </form>
+</div>
+
+<form method="get" class="filter-form">
+  <input type="hidden" name="scope" value="{{ scope }}">
+  <label>Search title/description
+    <input type="text" name="q" value="{{ text_q }}" placeholder="python, engineer, …">
+  </label>
+  <label>Company
+    <input type="text" name="company" value="{{ company_q }}" placeholder="Acme Corp, …">
+  </label>
+  <label>Min score
+    <input type="number" name="min_score" value="{{ min_score }}" step="0.05" min="0" max="1" style="width:6em">
+  </label>
+  <label>Source
+    <select name="source">
+      <option value="">all</option>
+      {% for s in sources %}<option value="{{ s }}" {{ 'selected' if source==s }}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Status
+    <select name="status">
+      <option value="">all</option>
+      {% for s in ['new','tailored','applied','skipped'] %}
+        <option value="{{ s }}" {{ 'selected' if status_filter==s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Sort by
+    <select name="sort">
+      {% for val, lbl in [('smart','🧠 Smart (best overall)'), ('match','🎯 Match score'),
+                          ('new','⚡ Newest'), ('warm','🤝 Warm intros first'),
+                          ('company','🏢 Company A–Z')] %}
+        <option value="{{ val }}" {{ 'selected' if (sort or 'smart')==val }}>{{ lbl }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="checkbox"><input type="checkbox" name="watchlist_only" {{ 'checked' if watchlist_only }}> Watchlist only</label>
+  <label class="checkbox"><input type="checkbox" name="remote_ok" {{ 'checked' if remote_ok }}> Include remote</label>
+  <label class="checkbox"><input type="checkbox" name="starred" {{ 'checked' if starred_only }}> ⭐ Starred only</label>
+  <button class="btn primary">Apply</button>
+  <a class="btn" href="{{ url_for('index') }}">Reset</a>
+</form>
+
+<p class="result-count">
+  Showing <strong>{{ jobs|length }}</strong>{% if shown_count and shown_count > jobs|length %} of {{ shown_count }} matching{% endif %} jobs
+  &middot; sorted by {{ {'smart':'AI score','match':'Match score','new':'Newest','warm':'Warm intros first','company':'Company','star':'Starred','title':'Title','location':'Location','source':'Source','status':'Status'}.get(sort or 'smart', 'AI score') }}
+  {{ '↓' if sort_dir == 'desc' else '↑' }}
+</p>
+
+<div id="main-view-container" class="view-mode-table">
+  <div class="table-pane">
+    <form method="post" action="{{ url_for('jobs_bulk') }}" data-legacy-action="{{ url_for('bulk_skip') }}" id="bulk-form">
+<table class="jobs">
+  <thead><tr>
+    <th style="width:24px"><input type="checkbox" id="bulk-all" title="Select all"></th>
+    {% for c in columns %}
+      <th class="col-th {{ 'sorted' if c.active }}">
+        <a class="col-sort" href="{{ c.href }}" title="Sort by {{ c.label }}">{{ c.label }}<span class="arrow">{{ c.arrow }}</span></a>
+      </th>
+    {% endfor %}
+    <th>Actions</th>
+  </tr></thead>
+  <tbody>
+  {% for job in jobs %}
+    <tr class="job-row {{ 'oor' if not job.is_local else '' }}{{ ' starred-row' if job.starred }}" data-id="{{ job.id }}" data-detail-url="{{ url_for('job_detail', job_id=job.id) }}">
+      <td><input type="checkbox" name="ids" value="{{ job.id }}" class="row-check"></td>
+      <td>
+        <form method="post" action="{{ url_for('star', job_id=job.id) }}" style="display:inline">
+          <button class="star-btn" title="{{ 'Unstar' if job.starred else 'Star' }}">
+            {{ '★' if job.starred else '☆' }}
+          </button>
+        </form>
+      </td>
+      <td><span class="score s{{ job._score_class }}" title="AI blended score · raw match {{ '%.2f'|format(job.match_score or 0) }}{% if job._refbonus %} · warm intro +{{ '%.2f'|format(job._refbonus) }}{% endif %}"><span class="score-ring" style="--p: {{ job._blend_pct }}"></span>{{ "%.2f"|format(job._blend) }}</span></td>
+      <td><a class="job-link" href="{{ url_for('job_detail', job_id=job.id) }}">{{ job.title }}</a></td>
+      <td>{{ job.company }}{% if 'watchlist' in (job.tags or '') %} <span class="tag-watch">★</span>{% endif %}{% if job.warm_intro %} <span class="tag-remote" title="{{ job.warm_intro }}">🤝 Warm intro</span>{% endif %}</td>
+      <td>{{ job.location }}{% if job.is_remote %} <span class="tag-remote">remote</span>{% endif %}{% if not job.is_local %} <span class="tag-far">far</span>{% endif %}</td>
+      <td><span class="tag">{{ job.source }}</span></td>
+      <td><span class="status status-{{ job.status }}">{{ job.status }}</span></td>
+      <td>
+        <a class="btn" href="{{ job.url }}" target="_blank" rel="noopener">View</a>
+        <form method="post" action="{{ url_for('tailor', job_id=job.id) }}" style="display:inline">
+          <button class="btn" title="Tailor with AI">⚡ Tailor</button>
+        </form>
+        <a class="btn" href="{{ url_for('tailor_studio', job_id=job.id) }}" title="Open SOTA Tailoring Studio" style="border-color:var(--accent);color:var(--accent)">Studio</a>
+        {% if job.status == 'expired' %}
+          <span class="badge expired" title="{{ job.expiry_reason }}">expired</span>
+          <form method="post" action="{{ url_for('restore_job_route', job_id=job.id) }}" style="display:inline">
+            <button class="btn" type="submit">Restore</button>
+          </form>
+        {% elif job.discovered_at and (now - job.discovered_at).days >= stale_days %}
+          <span class="badge stale">stale</span>
+        {% endif %}
+        {% if job.status == 'skipped' %}
+        <form method="post" action="{{ url_for('reopen', job_id=job.id) }}" style="display:inline">
+          <button class="btn">Reopen</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('skip', job_id=job.id) }}" style="display:inline">
+          <button class="btn">Skip</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="empty">No jobs match. Try <b>Reset</b>, <b>Add Job</b>, or <b>Scrape Now</b>.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="bulk-bar" id="bulk-bar">
+  <span style="font-weight:600;color:var(--text)" id="sel-count">0 selected</span>
+  <button class="btn" type="submit" name="action" value="star">⭐ Star</button>
+  <button class="btn" type="submit" name="action" value="unstar">☆ Unstar</button>
+  <button class="btn" type="submit" name="action" value="tailor_offline" style="border-color:var(--accent)">⚡ Tailor Offline (Zero AI)</button>
+  <button class="btn" type="submit" name="action" value="check_live">🔍 Check Live</button>
+  <button class="btn" type="submit" name="action" value="skip">⏭ Skip</button>
+  <button class="btn" type="submit" name="action" value="reopen">↺ Reopen</button>
+  <button class="btn" type="submit" name="action" value="delete" style="border-color:var(--err);color:var(--err)" onclick="return confirm('Permanently delete all selected jobs and their applications? This cannot be undone.');">🗑 Delete</button>
+</div>
+    </form>
+  </div>
+
+  <!-- Split Inspector Pane -->
+  <aside id="inspector-pane" class="inspector-pane" style="display:none;">
+    <div id="inspector-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:440px;color:var(--muted);text-align:center;padding:40px;">
+      <div style="font-size:2.8rem;margin-bottom:12px;">⚡</div>
+      <h3 style="margin:0 0 8px 0;color:var(--text);">Select a Job to Inspect</h3>
+      <p style="margin:0;max-width:320px;font-size:0.9rem;line-height:1.5;">Click any job in the list or press <kbd style="background:var(--border);padding:2px 6px;border-radius:4px;font-family:var(--font-mono)">j</kbd> / <kbd style="background:var(--border);padding:2px 6px;border-radius:4px;font-family:var(--font-mono)">k</kbd> to triage with live ATS keyword alignment.</p>
+    </div>
+    <div id="inspector-loading" style="display:none;padding:60px;text-align:center;color:var(--accent);">
+      <div style="font-size:2rem;margin-bottom:10px;">⚡</div>
+      <div style="font-size:0.95rem;font-weight:600;">Analyzing role & skills...</div>
+    </div>
+    <div id="inspector-content" style="display:none;"></div>
+  </aside>
+</div>
+
+{% if num_pages > 1 %}
+<nav class="pager" aria-label="Job pages">
+  {% if page > 1 %}
+    <a class="btn" href="{{ url_for('index', **dict(cur_args, page=1)) }}">« First</a>
+    <a class="btn" href="{{ url_for('index', **dict(cur_args, page=page-1)) }}">‹ Prev</a>
+  {% endif %}
+  <span class="pager-status meta">Page <strong>{{ page }}</strong> of {{ num_pages }} &middot; {{ shown_count }} jobs</span>
+  {% if page < num_pages %}
+    <a class="btn" href="{{ url_for('index', **dict(cur_args, page=page+1)) }}">Next ›</a>
+    <a class="btn" href="{{ url_for('index', **dict(cur_args, page=num_pages)) }}">Last »</a>
+  {% endif %}
+</nav>
+{% endif %}
+
+<!-- Quick Add Modal -->
+<div id="quick-add-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0;font-size:1.3em;border:none">➕ Quick Add Job</h2>
+      <button type="button" class="btn" onclick="toggleQuickAddModal()">✕</button>
+    </div>
+    <form method="post" action="{{ url_for('job_add') }}">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Job URL / Link (Workday, Indeed, Greenhouse, etc.)</label>
+        <input type="url" name="url" placeholder="https://..." style="width:100%;box-sizing:border-box;padding:8px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Title (Optional)</label>
+          <input type="text" name="title" placeholder="e.g. Bioinformatics Scientist" style="width:100%;box-sizing:border-box;padding:8px">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Company (Optional)</label>
+          <input type="text" name="company" placeholder="e.g. Quest Diagnostics" style="width:100%;box-sizing:border-box;padding:8px">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Location (Optional)</label>
+        <input type="text" name="location" placeholder="e.g. Baltimore, MD or Remote" style="width:100%;box-sizing:border-box;padding:8px">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Job Description (Optional if URL provided)</label>
+        <textarea name="description" rows="4" placeholder="Paste full or excerpted job posting text here..." style="width:100%;box-sizing:border-box;padding:8px"></textarea>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.85em;color:var(--muted);margin-bottom:4px">Post-Add Action</label>
+        <select name="tailor_mode" style="width:100%;box-sizing:border-box;padding:8px">
+          <option value="offline">⚡ Tailor Offline Immediately (Zero AI)</option>
+          <option value="none">Just Save to Database</option>
+          <option value="cloud">Tailor with Cloud AI</option>
+        </select>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button type="button" class="btn" onclick="toggleQuickAddModal()">Cancel</button>
+        <button type="submit" class="btn primary">Add Job</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Shortcuts Cheat Sheet Modal -->
+<div id="shortcuts-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0;font-size:1.3em;border:none">⌨ Keyboard Navigation Shortcuts</h2>
+      <button type="button" class="btn" onclick="toggleShortcutsModal()">✕</button>
+    </div>
+    <table style="width:100%;margin-bottom:16px">
+      <tr><th style="text-align:left;padding:6px">Key</th><th style="text-align:left;padding:6px">Action</th></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">j</span> / <span class="kbd-shortcut">↓</span></td><td style="padding:6px">Move focus down to next job</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">k</span> / <span class="kbd-shortcut">↑</span></td><td style="padding:6px">Move focus up to previous job</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">Enter</span> / <span class="kbd-shortcut">o</span></td><td style="padding:6px">Open detail page for focused job</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">x</span></td><td style="padding:6px">Toggle skip / reopen on focused job</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">s</span></td><td style="padding:6px">Toggle star on focused job</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">t</span></td><td style="padding:6px">Tailor focused job offline (Zero AI)</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">Space</span></td><td style="padding:6px">Toggle checkbox selection on focused job</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">a</span> / <span class="kbd-shortcut">Ctrl+N</span></td><td style="padding:6px">Open Quick Add Job modal</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">?</span></td><td style="padding:6px">Toggle this shortcuts cheat sheet</td></tr>
+      <tr><td style="padding:6px"><span class="kbd-shortcut">Esc</span></td><td style="padding:6px">Close open modal / cancel focus</td></tr>
+    </table>
+    <div style="text-align:right">
+      <button type="button" class="btn primary" onclick="toggleShortcutsModal()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.view-mode-split {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-top: 14px;
+}
+.view-mode-split .table-pane {
+  flex: 0 0 44%;
+  max-width: 44%;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.view-mode-split .table-pane table.jobs th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-elev);
+}
+.view-mode-split .inspector-pane {
+  flex: 0 0 calc(56% - 16px);
+  max-width: calc(56% - 16px);
+  position: sticky;
+  top: 15px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  display: block !important;
+}
+.view-mode-split .table-pane table.jobs thead th:nth-child(5),
+.view-mode-split .table-pane table.jobs thead th:nth-child(6),
+.view-mode-split .table-pane table.jobs thead th:nth-child(7),
+.view-mode-split .table-pane table.jobs thead th:nth-child(8),
+.view-mode-split .table-pane table.jobs tbody td:nth-child(5),
+.view-mode-split .table-pane table.jobs tbody td:nth-child(6),
+.view-mode-split .table-pane table.jobs tbody td:nth-child(7),
+.view-mode-split .table-pane table.jobs tbody td:nth-child(8) {
+  display: none;
+}
+.view-mode-split .table-pane table.jobs tbody tr.job-row {
+  cursor: pointer;
+}
+.view-mode-split .table-pane table.jobs tbody tr.focused-row {
+  background: rgba(34,211,238,0.12) !important;
+  border-left: 3px solid var(--accent);
+}
+.view-toggle button.active-toggle {
+  background: var(--accent) !important;
+  color: #000 !important;
+  font-weight: 700;
+}
+</style>
+
+<script>
+let focusedRowIndex = -1;
+let currentInspectedJobId = null;
+const jobRows = Array.from(document.querySelectorAll('.job-row'));
+
+function setViewMode(mode) {
+  const container = document.getElementById('main-view-container');
+  const tableBtn = document.getElementById('view-mode-table-btn');
+  const splitBtn = document.getElementById('view-mode-split-btn');
+  const inspectorPane = document.getElementById('inspector-pane');
+
+  if (mode === 'split') {
+    container.className = 'view-mode-split';
+    splitBtn.classList.add('active-toggle');
+    tableBtn.classList.remove('active-toggle');
+    inspectorPane.style.display = 'block';
+    localStorage.setItem('jobbot_view_mode', 'split');
+    if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+      inspectJob(jobRows[focusedRowIndex].dataset.id);
+    } else if (jobRows.length > 0) {
+      setFocusedRow(0);
+    }
+  } else {
+    container.className = 'view-mode-table';
+    tableBtn.classList.add('active-toggle');
+    splitBtn.classList.remove('active-toggle');
+    inspectorPane.style.display = 'none';
+    localStorage.setItem('jobbot_view_mode', 'table');
+  }
+}
+
+// Restore saved view mode preference
+(function initViewMode() {
+  const saved = localStorage.getItem('jobbot_view_mode');
+  if (saved === 'split') {
+    setViewMode('split');
+  }
+})();
+
+function inspectJob(jobId) {
+  if (!jobId || jobId === currentInspectedJobId) return;
+  currentInspectedJobId = jobId;
+
+  const placeholder = document.getElementById('inspector-placeholder');
+  const loading = document.getElementById('inspector-loading');
+  const content = document.getElementById('inspector-content');
+
+  placeholder.style.display = 'none';
+  loading.style.display = 'block';
+  content.style.display = 'none';
+
+  fetch(`/job/${jobId}/inspect`)
+    .then(r => {
+      if (!r.ok) throw new Error('Failed to load job');
+      return r.text();
+    })
+    .then(html => {
+      loading.style.display = 'none';
+      content.innerHTML = html;
+      content.style.display = 'block';
+    })
+    .catch(err => {
+      loading.style.display = 'none';
+      content.innerHTML = `<div style="padding:30px;color:var(--err)">Error loading job #${jobId}: ${err.message}</div>`;
+      content.style.display = 'block';
+    });
+}
+
+function quickStatusChange(jobId, newStatus) {
+  fetch(`/job/${jobId}/status-api`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status: newStatus})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      // Update badge on row in list
+      const row = document.querySelector(`.job-row[data-id="${jobId}"]`);
+      if (row) {
+        const statusSpan = row.querySelector('.status');
+        if (statusSpan) {
+          statusSpan.className = `status status-${data.status}`;
+          statusSpan.textContent = data.status;
+        }
+        if (data.status === 'starred') {
+          row.classList.add('starred-row');
+          const starBtn = row.querySelector('.star-btn');
+          if (starBtn) starBtn.textContent = '★';
+        } else if (data.status === 'skipped') {
+          row.classList.remove('starred-row');
+          const starBtn = row.querySelector('.star-btn');
+          if (starBtn) starBtn.textContent = '☆';
+        }
+      }
+      // Reload inspector pane
+      currentInspectedJobId = null;
+      inspectJob(jobId);
+    }
+  })
+  .catch(err => alert('Failed to update status: ' + err.message));
+}
+
+function toggleQuickAddModal() {
+  const m = document.getElementById('quick-add-modal');
+  m.style.display = (m.style.display === 'none' || !m.style.display) ? 'flex' : 'none';
+}
+
+function toggleShortcutsModal() {
+  const m = document.getElementById('shortcuts-modal');
+  m.style.display = (m.style.display === 'none' || !m.style.display) ? 'flex' : 'none';
+}
+
+function setFocusedRow(idx) {
+  if (idx < 0 || idx >= jobRows.length) return;
+  if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+    jobRows[focusedRowIndex].classList.remove('focused-row');
+  }
+  focusedRowIndex = idx;
+  const row = jobRows[focusedRowIndex];
+  row.classList.add('focused-row');
+  row.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+
+  // If in split mode, auto-inspect the focused job
+  const container = document.getElementById('main-view-container');
+  if (container.classList.contains('view-mode-split')) {
+    inspectJob(row.dataset.id);
+  }
+}
+
+// Attach click listener for rows in split mode
+jobRows.forEach((row, idx) => {
+  row.addEventListener('click', (e) => {
+    // If clicked on a link, form, button, or checkbox, let standard behavior run
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'a' || tag === 'button' || tag === 'input' || tag === 'select' || e.target.closest('form')) {
+      return;
+    }
+    const container = document.getElementById('main-view-container');
+    if (container.classList.contains('view-mode-split')) {
+      setFocusedRow(idx);
+    }
+  });
+});
+
+// Bulk selection management
+(function(){
+  const allBox = document.getElementById('bulk-all');
+  const rows = document.querySelectorAll('.row-check');
+  const counter = document.getElementById('sel-count');
+  function refresh(){
+    const n = Array.from(rows).filter(r => r.checked).length;
+    counter.textContent = n + ' selected';
+  }
+  if (allBox) allBox.addEventListener('change', () => { rows.forEach(r => r.checked = allBox.checked); refresh(); });
+  rows.forEach(r => r.addEventListener('change', refresh));
+  refresh();
+})();
+
+// Keyboard listener
+document.addEventListener('keydown', function(e) {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+    if (e.key === 'Escape') {
+      document.getElementById('quick-add-modal').style.display = 'none';
+      document.getElementById('shortcuts-modal').style.display = 'none';
+    }
+    return;
+  }
+
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleShortcutsModal();
+    return;
+  }
+
+  if (e.key === 'v') {
+    e.preventDefault();
+    const container = document.getElementById('main-view-container');
+    const isSplit = container.classList.contains('view-mode-split');
+    setViewMode(isSplit ? 'table' : 'split');
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    document.getElementById('quick-add-modal').style.display = 'none';
+    document.getElementById('shortcuts-modal').style.display = 'none';
+    if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+      jobRows[focusedRowIndex].classList.remove('focused-row');
+      focusedRowIndex = -1;
+    }
+    return;
+  }
+
+  if (e.key === 'a' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n')) {
+    e.preventDefault();
+    toggleQuickAddModal();
+    return;
+  }
+
+  if (!jobRows.length) return;
+
+  if (e.key === 'j' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    setFocusedRow(focusedRowIndex < jobRows.length - 1 ? focusedRowIndex + 1 : 0);
+  } else if (e.key === 'k' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    setFocusedRow(focusedRowIndex > 0 ? focusedRowIndex - 1 : jobRows.length - 1);
+  } else if (e.key === 'Enter' || e.key === 'o') {
+    if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+      const link = jobRows[focusedRowIndex].querySelector('.job-link');
+      if (link) link.click();
+    }
+  } else if (e.key === 'c') {
+    if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+      const jid = jobRows[focusedRowIndex].dataset.id;
+      window.location.href = `/chat?job_id=${jid}`;
+    }
+  } else if (e.key === ' ') {
+    if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+      e.preventDefault();
+      const cb = jobRows[focusedRowIndex].querySelector('.row-check');
+      if (cb) {
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      }
+    }
+  } else if (e.key === 's') {
+    if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+      e.preventDefault();
+      const starBtn = jobRows[focusedRowIndex].querySelector('.star-btn');
+      if (starBtn) starBtn.click();
+    }
+  } else if (e.key === 'x') {
+    if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+      e.preventDefault();
+      const actionForms = jobRows[focusedRowIndex].querySelectorAll('form');
+      for (let f of actionForms) {
+        if (f.action.includes('/skip/') || f.action.includes('/reopen/')) {
+          f.submit();
+          break;
+        }
+      }
+    }
+  } else if (e.key === 't') {
+    if (focusedRowIndex >= 0 && jobRows[focusedRowIndex]) {
+      e.preventDefault();
+      const jid = jobRows[focusedRowIndex].dataset.id;
+      window.location.href = `/tailor-studio/${jid}`;
+    }
+  }
+});
+</script>
+{% endblock %}

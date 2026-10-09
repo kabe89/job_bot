@@ -1,0 +1,30 @@
+{
+  "search_keywords": [
+    "computational scientist",
+    "software engineer",
+    "machine learning",
+    "data engineer"
+  ],
+  "search_locations": [
+    "Boston, MA",
+    "New York, NY",
+    "Remote",
+    "Hybrid"
+  ],
+  "negative_keywords": [
+    "intern",
+    "undergraduate",
+    "recruiter",
+    "sales",
+    "executive"
+  ],
+  "min_match_score": 0.4,
+  "semantic_rerank_threshold": 0.6,
+  "max_applications_per_day": 25,
+  "preferred_ats": [
+    "greenhouse",
+    "lever",
+    "workday",
+    "ashby"
+  ]
+}

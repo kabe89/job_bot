@@ -1,0 +1,14 @@
+[
+  {"a": "Are you legally authorized to work in the US?",
+   "b": "Do you have work authorization in the United States?",
+   "equivalent": true},
+  {"a": "How many years of Python experience do you have?",
+   "b": "Years of experience with Python",
+   "equivalent": true},
+  {"a": "Are you legally authorized to work in the US?",
+   "b": "Do you require sponsorship to work in the US?",
+   "equivalent": false},
+  {"a": "Are you 18 years or older?",
+   "b": "Have you ever been convicted of a felony?",
+   "equivalent": false}
+]

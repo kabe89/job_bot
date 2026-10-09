@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Forecast — JobBot{% endblock %}
+{% block content %}
+<h1>Search Forecast</h1>
+<p class="meta">Project your pipeline from a designated start date. Assumes top-scoring jobs from the DB get tailored applications.</p>
+<form method="post" class="forecast-form">
+  <label>Start date <input type="date" name="start_date" value="{{ start_date }}" required></label>
+  <label>Horizon (days) <input type="number" name="horizon_days" value="{{ horizon_days }}" min="14" max="365"></label>
+  <label>Applications / week <input type="number" name="apply_rate" value="{{ apply_rate }}" min="1" max="40"></label>
+  <button class="btn primary">Run forecast</button>
+</form>
+
+{% if result %}
+<div class="metric-grid">
+  <div class="metric"><div class="label">Projected applications</div><div class="value">{{ result.total_applications_projected }}</div></div>
+  <div class="metric"><div class="label">Expected callbacks</div><div class="value">{{ result.expected_callbacks }}</div></div>
+  <div class="metric"><div class="label">Expected interviews</div><div class="value">{{ result.expected_first_round_interviews }}</div></div>
+  <div class="metric"><div class="label">Expected offers</div><div class="value">{{ result.expected_offers }}</div></div>
+  <div class="metric"><div class="label">P(≥1 offer)</div><div class="value">{{ "%.1f%%"|format(result.p_at_least_one_offer * 100) }}</div></div>
+  <div class="metric"><div class="label">Horizon end</div><div class="value">{{ result.horizon_end[:10] }}</div></div>
+</div>
+
+<h2>Top 10 highest-probability jobs in this plan</h2>
+<table class="jobs">
+  <thead><tr><th>Job ID</th><th>P(callback)</th><th>P(interview)</th><th>P(offer)</th></tr></thead>
+  <tbody>
+  {% for row in result.top_predictions %}
+    <tr>
+      <td><a href="{{ url_for('predict_job_route', job_id=row.job_id) }}">#{{ row.job_id }}</a></td>
+      <td>{{ "%.1f%%"|format(row.callback * 100) }}</td>
+      <td>{{ "%.1f%%"|format(row.interview * 100) }}</td>
+      <td>{{ "%.1f%%"|format(row.offer * 100) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

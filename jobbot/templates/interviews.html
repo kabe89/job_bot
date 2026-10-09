@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Interview practice{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Interview practice</h1>
+  {% if mean is not none %}<p class="muted">Overall average: <strong>{{ mean }}/5</strong></p>{% endif %}
+</div>
+
+{% if by_mode %}
+<div class="panel">
+  <h2>By mode</h2>
+  <table class="table">
+    <thead><tr><th>Mode</th><th>Average score</th></tr></thead>
+    <tbody>
+      {% for mode, score in by_mode.items() %}
+        <tr><td>{{ mode }}</td><td>{{ score }}/5</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>Sessions</h2>
+  {% if sessions %}
+  <table class="table">
+    <thead><tr><th>Role</th><th>Company</th><th>Mode</th><th>Answers</th>
+               <th>Score</th><th>When</th></tr></thead>
+    <tbody>
+      {% for s in sessions %}
+        <tr>
+          <td><a href="{{ url_for('practice_page', session_id=s.session_id) }}">{{ s.title }}</a></td>
+          <td>{{ s.company }}</td>
+          <td>{{ s.mode }}</td>
+          <td>{{ s.turns }}</td>
+          <td>{% if s.overall_score is not none %}{{ s.overall_score }}/5{% else %}<span class="muted">open</span>{% endif %}</td>
+          <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">No practice sessions yet. Open a job's interview prep page and start one.</p>
+  {% endif %}
+</div>
+{% endblock %}

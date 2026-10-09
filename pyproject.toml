@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobbot"
+version = "1.0.0"
+description = "Autonomous, privacy-first job discovery, tailored application kit generator, and local tracking engine."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "JobBot Open Source Community" }
+]
+keywords = [
+    "job-search",
+    "resume-tailoring",
+    "privacy-first",
+    "local-llm",
+    "ollama",
+    "jobspy",
+    "career-automation"
+]
+dependencies = [
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "pyyaml>=6.0.1",
+    "python-dotenv>=1.0.0",
+    "sqlalchemy>=2.0.25",
+    "flask>=3.0.0",
+    "werkzeug>=3.0.0",
+    "jinja2>=3.1.2",
+    "apscheduler>=3.10.4",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.0",
+    "feedparser>=6.0.10",
+    "tenacity>=8.2.3",
+    "truststore>=0.9.0; sys_platform == 'win32'",
+    "keyring>=24.0.0",
+    "numpy>=1.24.0",
+    "markdown>=3.5.1",
+    "pdfplumber>=0.10.3",
+    "python-docx>=1.1.0",
+    "reportlab>=4.0.7",
+    "edge-tts>=6.1.0",
+    "click>=8.1.7",
+    "rich>=13.7.0",
+    "python-jobspy>=0.4.1",
+    "ddgs>=6.0.0",
+    "anthropic>=0.69.0",
+    "google-genai>=1.0.0",
+    "playwright>=1.44.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-xdist>=3.5.0",
+    "coverage>=7.4.0"
+]
+
+[project.scripts]
+jobbot = "jobbot.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["jobbot*"]
+
+[tool.setuptools.package-data]
+jobbot = ["templates/*.html", "static/*.css", "static/*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "strict"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::sqlalchemy.exc.LegacyAPIWarning"
+]

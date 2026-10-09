@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Auto-apply — JobBot{% endblock %}
+{% block content %}
+<h1>Auto-apply</h1>
+<p class="meta">Selects jobs that meet your thresholds AND the model's callback-probability floor.
+Defaults to <b>dry-run</b>. Check "Confirm and send" to actually send. Quota remaining today: <b>{{ quota }}</b>.</p>
+
+<section class="cc-panel">
+<form method="post" class="forecast-form">
+  <label>Min match score
+    <input type="number" name="min_score" step="0.05" min="0" max="1" value="{{ cfg.min_match_score }}">
+  </label>
+  <label>Min P(callback)
+    <input type="number" name="min_callback" step="0.01" min="0" max="1" value="{{ cfg.min_callback_probability }}">
+  </label>
+  <label>Max applies this run
+    <input type="number" name="max_applies" min="1" max="50" placeholder="(daily quota)">
+  </label>
+  <label>Default recipient (fallback if posting has none)
+    <input type="email" name="default_recipient" value="{{ cfg.default_recipient }}" placeholder="me@example.com">
+  </label>
+  <label style="flex-direction:row;align-items:center;gap:6px">
+    <input type="checkbox" name="watchlist_only" {{ "checked" if cfg.watchlist_only }}> Watchlist only
+  </label>
+  <label style="flex-direction:row;align-items:center;gap:6px">
+    <input type="checkbox" name="confirm" value="1"> ⚠ Confirm and send (uncheck = dry-run)
+  </label>
+  <button class="btn primary">Run</button>
+</form>
+</section>
+
+{% if report %}
+<section class="cc-panel">
+<h2>Plan — {{ report.selected }} candidates {% if report.confirmed_send %}(sent){% else %}(dry-run){% endif %}</h2>
+<table class="jobs">
+  <thead><tr><th>Job</th><th>Company</th><th>P(callback)</th><th>Recipient</th><th>Action</th></tr></thead>
+  <tbody>
+  {% for d in report.details %}
+    <tr>
+      <td><a href="{{ url_for('job_detail', job_id=d.job_id) }}">#{{ d.job_id }} {{ d.title }}</a></td>
+      <td>{{ d.company }}</td>
+      <td>{{ "%.1f%%"|format(d.p_callback * 100) }}</td>
+      <td><code>{{ d.recipient }}</code></td>
+      <td>{{ d.action }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="empty">No candidates met thresholds.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if report.errors %}
+  <h3 style="color:var(--err)">Errors</h3>
+  <pre>{{ report.errors }}</pre>
+{% endif %}
+</section>
+{% endif %}
+{% endblock %}

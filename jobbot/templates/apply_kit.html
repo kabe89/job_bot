@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Apply Kit — {{ job.title }} — JobBot{% endblock %}
+{% block content %}
+<a href="{{ url_for('job_detail', job_id=job.id) }}">&larr; Back to job</a>
+<h1>📋 Apply Kit</h1>
+<p class="meta"><b>{{ job.title }}</b> @ {{ job.company }} · <span class="tag">{{ job.source }}</span></p>
+
+<p style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+  <a class="btn primary" href="{{ url_for('launch_copilot_route', job_id=job.id) }}" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:600" title="Launch browser with JobBot Copilot pre-injected">🚀 Launch Copilot Browser</a>
+  <a class="btn" href="javascript:(function(){const s=document.createElement('script');s.src='http://localhost:5000/static/jobbot_copilot.js?t='+Date.now();document.head.appendChild(s);})()" onclick="event.preventDefault(); navigator.clipboard.writeText(this.href); alert('⭐ Copilot Bookmarklet copied! You can also drag this button to your browser bookmarks bar.');" title="Drag to bookmarks bar or click to copy code">⭐ Copilot Bookmarklet (Drag / Copy)</a>
+  <a class="btn" href="{{ job.url }}" target="_blank" rel="noopener">Open posting form ↗</a>
+  <form method="post" action="{{ url_for('apply_kit_generate', job_id=job.id) }}" style="display:inline">
+    <button class="btn" onclick="this.disabled=true;this.textContent='Working… (~30s)';this.form.submit()">
+      {{ '🔁 Rebuild kit' if questions else '⚡ Build apply kit' }}
+    </button>
+  </form>
+</p>
+
+{% if not questions %}
+  <p class="empty">No kit yet. <b>Build apply kit</b> fetches the real questions from the
+  application form (Greenhouse / Lever / Ashby / HTML), tailors your resume + cover letter
+  if needed, and auto-answers everything it can.</p>
+{% else %}
+
+<p class="meta">
+  Questions source:
+  {% if source %}<b style="color:var(--ok)">{{ source }} (real form)</b>
+  {% else %}<b style="color:var(--warn)">common defaults — form not readable (likely login-walled)</b>{% endif %}
+  {% if blanks %} · <b style="color:var(--warn)">{{ blanks }} need your input</b>
+  {% else %} · <b style="color:var(--ok)">all answered ✓</b>{% endif %}
+</p>
+
+<h2>Your details <span class="meta">(click to copy)</span></h2>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+  {% for k, v in fields.items() if v %}
+  <button type="button" class="btn" onclick="copyText(this, {{ v|tojson }})"
+          title="Copy {{ k }}">{{ k.replace('_',' ')|title }}: {{ v }}</button>
+  {% endfor %}
+  {% if application and application.tailored_resume_path %}
+  <a class="btn primary" style="font-weight:600" href="{{ url_for('download_app_docx', app_id=application.id) }}">📄 Resume (.docx)</a>
+  <a class="btn" href="{{ url_for('download', filename=application.tailored_resume_path.replace('\\','/')) }}">⬇ Resume ({{ application.tailored_resume_path.split('.')[-1]|upper }})</a>
+  {% endif %}
+  {% if application and application.cover_letter_path %}
+  <a class="btn primary" style="font-weight:600" href="{{ url_for('download_app_cover_docx', app_id=application.id) }}">✉ Cover Letter (.docx)</a>
+  <a class="btn" href="{{ url_for('download', filename=application.cover_letter_path.replace('\\','/')) }}">⬇ Cover letter (.txt)</a>
+  {% endif %}
+  {% if cover_text %}
+  <button type="button" class="btn" onclick="copyText(this, {{ cover_text|tojson }})">📄 Copy cover letter text</button>
+  {% endif %}
+</div>
+
+<h2>Form questions ({{ questions|length }})</h2>
+<form method="post" action="{{ url_for('apply_kit_save', job_id=job.id) }}">
+  {% for q in questions %}
+  <div class="app-card" {% if q.needs_user or q.needs_review %}style="border-color:var(--warn)"{% endif %}>
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">
+      <b>{{ loop.index }}. {{ q.text }}{% if q.required %} <span style="color:var(--err)">*</span>{% endif %}</b>
+      <span class="meta" style="white-space:nowrap">
+        {% if q.needs_user %}⚠ needs you
+        {% elif q.needs_review %}⚠ confirm this
+        {% elif q.answer_source %}via {{ q.answer_source }}{% endif %}
+      </span>
+    </div>
+    {% if q.options %}
+    <div class="meta" style="margin:4px 0">Options: {{ q.options|join(' · ') }}</div>
+    {% endif %}
+    {% if q.needs_review %}
+    <div class="meta" style="color:var(--warn);margin:4px 0">
+      Answered by AI guess — check it before you submit.
+    </div>
+    {% elif q.guess %}
+    <div class="meta" style="color:var(--warn);margin:4px 0">
+      We had “{{ q.guess }}” but it doesn’t match any option above, so it was left blank.
+    </div>
+    {% endif %}
+    {% if q.qtype == 'file' %}
+      <div class="meta">📎 Attach: <code>{{ q.answer or '(no file yet — tailor first)' }}</code></div>
+      <input type="hidden" name="answer_{{ loop.index0 }}" value="{{ q.answer }}">
+    {% elif q.options %}
+      <select name="answer_{{ loop.index0 }}"
+              style="width:100%;background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font:inherit">
+        <option value="" {% if not q.answer %}selected{% endif %}>— pick one —</option>
+        {% for opt in q.options %}
+        <option value="{{ opt }}" {% if opt == q.answer %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+        {% if q.answer and q.answer not in q.options %}
+        <option value="{{ q.answer }}" selected>{{ q.answer }}</option>
+        {% endif %}
+      </select>
+    {% else %}
+      <textarea name="answer_{{ loop.index0 }}" rows="{{ 4 if q.qtype == 'textarea' else 2 }}"
+                placeholder="{{ '⚠ The bot could not answer this — type your answer' if q.needs_user else '' }}"
+                style="width:100%;background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font:inherit">{{ q.answer }}</textarea>
+    {% endif %}
+    <div style="display:flex;gap:12px;align-items:center;margin-top:6px">
+      {% if q.answer and q.qtype != 'file' %}
+      <button type="button" class="btn" onclick="copyText(this, {{ q.answer|tojson }})">📋 Copy answer</button>
+      {% endif %}
+      <label class="meta" style="cursor:pointer">
+        <input type="checkbox" name="remember_{{ loop.index0 }}"> remember this answer for future applications
+      </label>
+    </div>
+  </div>
+  {% endfor %}
+  <button class="btn primary" style="margin-top:8px">💾 Save answers</button>
+</form>
+{% endif %}
+
+<script>
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const old = btn.textContent;
+    btn.textContent = "✓ Copied";
+    setTimeout(() => { btn.textContent = old; }, 1200);
+  });
+}
+</script>
+{% endblock %}

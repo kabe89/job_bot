@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}AI Advisor & Job Evaluator — JobBot{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+  <div>
+    <h1 style="margin:0;display:flex;align-items:center;gap:8px">🤖 AI Advisor & Job Evaluator</h1>
+    <p class="meta" style="margin:4px 0 0">Local AI grounded in your resume & verified skills, with live online employer research.</p>
+  </div>
+  <button class="btn" onclick="clearChat()">↺ Clear Chat</button>
+</div>
+
+<!-- Anchor Controls Card -->
+<div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;flex-wrap:wrap;align-items:center;gap:14px">
+  <div style="flex:1;min-width:260px">
+    <label style="display:block;font-size:0.8em;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Anchor Job (Optional)</label>
+    <select id="job-selector" onchange="onJobSelected()" style="width:100%;padding:7px 10px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px">
+      <option value="">-- No specific job (general resume & career coaching) --</option>
+      {% for j in jobs %}
+        <option value="{{ j.id }}" {% if selected_job and selected_job.id == j.id %}selected{% endif %}>
+          {% if j.starred %}⭐ {% endif %}#{{ j.id }}: {{ j.title }} @ {{ j.company }} ({{ j.location }})
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding-top:16px">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9em">
+      <input type="checkbox" id="enable-web-search" checked>
+      <span>🌐 Live Online Research</span>
+    </label>
+  </div>
+  <div style="padding-top:16px">
+    <button class="btn primary" onclick="runOneClickEval()" id="eval-btn">🎯 Deep Job Evaluation</button>
+  </div>
+</div>
+
+<!-- Chat Container -->
+<div id="chat-box" style="background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);height:60vh;min-height:450px;display:flex;flex-direction:column;overflow:hidden">
+  <!-- Messages List -->
+  <div id="messages-list" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:16px">
+    <!-- Initial Greeting -->
+    <div class="bot-msg" style="background:var(--panel);border:1px solid var(--glass-brd);border-radius:10px;padding:14px 18px;max-width:85%;align-self:flex-start">
+      <div style="font-weight:600;color:var(--accent);margin-bottom:6px">🤖 JobBot AI Advisor</div>
+      <div style="line-height:1.6">
+        Hello! I am your AI career advisor. I have full context on your background, publications, verified skills, and employment history.
+        {% if selected_job %}
+          <br><br>Currently analyzing <b>Job #{{ selected_job.id }}: {{ selected_job.title }} @ {{ selected_job.company }}</b>.
+        {% endif %}
+        <br><br>How can I help you today? You can ask me to:
+        <ul style="margin:8px 0 0;padding-left:20px">
+          <li><b>Evaluate fit</b>: Analyze required vs. preferred skills against your resume.</li>
+          <li><b>Identify gaps & strengths</b>: Highlight what to emphasize and how to bridge missing items.</li>
+          <li><b>Research employer</b>: Investigate company reputation, recent news, culture, and glassdoor sentiment.</li>
+          <li><b>Salary benchmarks</b>: Compare compensation against local market estimates.</li>
+        </ul>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+        <button class="btn" style="font-size:0.85em;padding:4px 10px" onclick="quickPrompt('Perform a complete evaluation of this job against my resume')">🎯 Evaluate This Job</button>
+        <button class="btn" style="font-size:0.85em;padding:4px 10px" onclick="quickPrompt('What are my biggest qualification gaps for this role and how can I address them?')">⚠️ Analyze Gaps</button>
+        <button class="btn" style="font-size:0.85em;padding:4px 10px" onclick="quickPrompt('Search online for recent company news and employee sentiment for this employer')">🌐 Search Company Intel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Input Bar -->
+  <div style="padding:12px 16px;background:var(--panel);border-top:1px solid var(--border);display:flex;gap:10px;align-items:flex-end">
+    <textarea id="chat-input" rows="2" placeholder="Ask anything about this job or your resume... (Enter to send, Shift+Enter for newline)"
+              style="flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:inherit;font-size:14px;resize:none"
+              onkeydown="handleKey(event)"></textarea>
+    <button class="btn primary" id="send-btn" onclick="sendMessage()" style="height:44px;padding:0 20px;font-weight:600">Send ↗</button>
+  </div>
+</div>
+
+<script>
+let conversationHistory = [];
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function quickPrompt(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+async function onJobSelected() {
+  const sel = document.getElementById('job-selector');
+  const jobId = sel.value;
+  if (jobId) {
+    appendSystemNotice(`Switched target job anchor to Job #${jobId}. Checking history...`);
+    try {
+      const res = await fetch(`/chat/api/history/${jobId}`);
+      const history = await res.json();
+      if (Array.isArray(history) && history.length > 0) {
+        conversationHistory = history;
+        history.forEach(m => {
+          if (m.role === 'user') {
+            appendUserMessage(m.content);
+          } else {
+            appendBotMessage(m.content, []);
+          }
+        });
+        appendSystemNotice(`Restored ${history.length} past messages for Job #${jobId}.`);
+      } else {
+        conversationHistory = [];
+      }
+    } catch (e) {
+      console.warn("Could not load chat history:", e);
+    }
+  } else {
+    appendSystemNotice("Cleared job anchor. Speaking in general career & resume mode.");
+    conversationHistory = [];
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const sel = document.getElementById('job-selector');
+  if (sel && sel.value) {
+    onJobSelected();
+  }
+});
+
+function appendSystemNotice(text) {
+  const list = document.getElementById('messages-list');
+  const div = document.createElement('div');
+  div.style.cssText = 'text-align:center;font-size:0.85em;color:var(--muted);margin:4px 0;font-style:italic';
+  div.innerText = text;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+}
+
+function appendUserMessage(text) {
+  const list = document.getElementById('messages-list');
+  const div = document.createElement('div');
+  div.style.cssText = 'background:linear-gradient(135deg, rgba(34,211,238,0.2), rgba(167,139,250,0.2));border:1px solid var(--accent);border-radius:10px;padding:12px 16px;max-width:80%;align-self:flex-end;color:var(--text);white-space:pre-wrap;line-height:1.5';
+  div.innerText = text;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+}
+
+function appendBotMessage(markdownText, webResults) {
+  const list = document.getElementById('messages-list');
+  const div = document.createElement('div');
+  div.style.cssText = 'background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 18px;max-width:85%;align-self:flex-start;line-height:1.6';
+
+  let html = '<div style="font-weight:600;color:var(--accent);margin-bottom:6px">🤖 JobBot AI Advisor</div>';
+
+  if (webResults && webResults.length > 0) {
+    html += '<div style="margin-bottom:10px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:0.85em">';
+    html += '<span style="color:var(--muted);font-weight:600">🌐 Online Sources Consulted:</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">';
+    webResults.forEach(w => {
+      html += `<a href="${w.url}" target="_blank" rel="noopener" class="tag" style="text-decoration:none;font-size:11px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.title || w.url} ↗</a>`;
+    });
+    html += '</div></div>';
+  }
+
+  // Format basic markdown headers and bolding
+  let formatted = escapeHtml(markdownText)
+    .replace(/^### (.*$)/gim, '<h4 style="margin:12px 0 6px;color:var(--accent2)">$1</h4>')
+    .replace(/^## (.*$)/gim, '<h3 style="margin:14px 0 6px;color:var(--accent)">$1</h3>')
+    .replace(/^# (.*$)/gim, '<h2 style="margin:16px 0 8px;color:var(--text)">$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.*?)\*/g, '<i>$1</i>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n- /g, '<br>• ');
+
+  html += `<div>${formatted}</div>`;
+  div.innerHTML = html;
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
+}
+
+function escapeHtml(text) {
+  const map = {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'};
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('send-btn');
+  const jobId = document.getElementById('job-selector').value || null;
+  const enableWeb = document.getElementById('enable-web-search').checked;
+
+  appendUserMessage(text);
+  input.value = '';
+  input.disabled = true;
+  btn.disabled = true;
+  btn.innerText = 'Thinking…';
+
+  conversationHistory.push({role: 'user', content: text});
+
+  try {
+    const res = await fetch('/chat/api/message', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        messages: conversationHistory,
+        job_id: jobId ? parseInt(jobId) : null,
+        enable_web: enableWeb,
+      })
+    });
+    const data = await res.json();
+    if (data.error) {
+      appendBotMessage("⚠️ Error: " + data.error, []);
+    } else {
+      conversationHistory.push({role: 'assistant', content: data.reply});
+      appendBotMessage(data.reply, data.web_results);
+    }
+  } catch (err) {
+    appendBotMessage("⚠️ Network error while connecting to local AI: " + err, []);
+  } finally {
+    input.disabled = false;
+    btn.disabled = false;
+    btn.innerText = 'Send ↗';
+    input.focus();
+  }
+}
+
+async function runOneClickEval() {
+  const sel = document.getElementById('job-selector');
+  const jobId = sel.value;
+  if (!jobId) {
+    alert("Please select a target job from the dropdown above to evaluate.");
+    return;
+  }
+
+  const btn = document.getElementById('eval-btn');
+  btn.disabled = true;
+  btn.innerText = 'Evaluating…';
+  const enableWeb = document.getElementById('enable-web-search').checked;
+
+  appendUserMessage("🎯 Run deep strategic evaluation for this role.");
+
+  try {
+    const res = await fetch(`/chat/api/evaluate/${jobId}?enable_web=${enableWeb}`, {method: 'POST'});
+    const data = await res.json();
+    if (data.error) {
+      appendBotMessage("⚠️ Error: " + data.error, []);
+    } else {
+      conversationHistory.push({role: 'assistant', content: data.evaluation});
+      appendBotMessage(data.evaluation, data.web_results);
+    }
+  } catch (err) {
+    appendBotMessage("⚠️ Evaluation failed: " + err, []);
+  } finally {
+    btn.disabled = false;
+    btn.innerText = '🎯 Deep Job Evaluation';
+  }
+}
+
+function clearChat() {
+  if (confirm("Reset conversation history?")) {
+    conversationHistory = [];
+    document.getElementById('messages-list').innerHTML = '';
+    onJobSelected();
+  }
+}
+</script>
+{% endblock %}

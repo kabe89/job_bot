@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Browser Apply — JobBot{% endblock %}
+{% block content %}
+<h1>Browser Auto-Apply</h1>
+<p class="muted">A real Chromium window is filling the application form on this
+  machine. Review the read-back values below, then Submit or Skip. CAPTCHAs and
+  login walls pause automatically — handle them in the browser window.</p>
+
+<section class="cc-panel">
+  <ol class="stepper">
+    <li class="{{ 'active' if state.phase == 'filling' }}">filling</li>
+    <li class="{{ 'active' if state.phase == 'checkpoint' }}">checkpoint</li>
+    <li class="{{ 'active' if state.phase == 'done' }}">done</li>
+    <li class="{{ 'active' if state.phase == 'error' }}">error</li>
+  </ol>
+
+  <div id="phase" class="badge">{{ state.phase }}</div>
+  <div id="panel">
+    {% if state.screenshot %}
+      <figure class="shot">
+        <a href="{{ url_for('download', filename=state.screenshot) }}">screenshot</a>
+      </figure>
+    {% endif %}
+    <table id="results" class="jobs" hidden>
+      <thead><tr><th>Field</th><th>Filled value</th><th>OK</th></tr></thead>
+      <tbody>
+        {% for r in state.results %}
+        <tr><td>{{ r.label }}</td><td>{{ r.actual }}</td>
+            <td>{{ 'yes' if r.ok else r.status }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <ul class="field-list">
+      {% for r in state.results %}
+      <li class="{{ 'ok' if r.ok else ('err' if r.status == 'error' else 'warn') }}">
+        <span>{{ r.label }}</span>
+        <span>{{ r.actual }} — {{ 'yes' if r.ok else r.status }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <form id="decide" method="post"
+        action="{{ url_for('browser_apply_decision', token=token) }}">
+    <button class="primary" name="choice" value="submit" type="submit">Submit application</button>
+    <button name="choice" value="skip" type="submit">Skip</button>
+  </form>
+</section>
+
+<script>
+const token = {{ token }};
+async function poll() {
+  const r = await fetch(`/apply-run/status/${token}`);
+  const s = await r.json();
+  document.getElementById('phase').textContent = s.phase;
+  // done | error | checkpoint are all terminal: the worker has exited and the
+  // Submit/Skip gate is closed, so stop polling and hide the decision form.
+  if (s.phase === 'done' || s.phase === 'error' || s.phase === 'checkpoint') {
+    document.getElementById('decide').style.display = 'none';
+    if (s.error) document.getElementById('phase').textContent = 'error: ' + s.error;
+    else if (s.confirmation) document.getElementById('phase').textContent =
+      s.phase + ' — ' + s.confirmation;
+    return;  // stop polling
+  }
+  setTimeout(poll, 1500);
+}
+poll();
+</script>
+{% endblock %}

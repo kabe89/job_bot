@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Resume Advice (Gemini)</h1>
+<form method="post" class="advice-form">
+  <label>Focus area (optional):
+    <input type="text" name="focus" value="{{ focus }}" placeholder="e.g. backend engineer, ML, ATS keywords">
+  </label>
+  <button class="btn primary">Get Advice</button>
+</form>
+{% if result %}
+  <article class="advice-result">
+    <pre>{{ result }}</pre>
+  </article>
+{% endif %}
+{% endblock %}

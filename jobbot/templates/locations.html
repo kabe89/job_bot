@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Locations — JobBot{% endblock %}
+{% block content %}
+<h1>Search Locations</h1>
+<p class="meta">Edit the locations JobBot considers "in range." Add as many cities, states, or country names as you want — one per line or comma-separated. Saved to <code>data/user_locations.txt</code> and applied immediately to the job list (no rescrape needed).</p>
+
+<form method="post" class="filter-form" style="flex-direction:column; align-items:stretch">
+  <label>Locations
+    <textarea name="locations" rows="14" style="width:100%; background:var(--bg-elev); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:10px; font-family:ui-monospace,monospace; font-size:13px">{{ raw_text }}</textarea>
+  </label>
+  <p class="meta" style="margin-top:6px">
+    Tips:
+    <ul style="margin-top:4px">
+      <li>Match is substring + case-insensitive — typing <code>baltimore</code> catches "Baltimore, MD" and "Baltimore County".</li>
+      <li>Add <code>remote</code> or <code>hybrid</code> to include those job types.</li>
+      <li>Add <code>anywhere</code> (or leave the box empty) to disable the location filter entirely.</li>
+      <li>Multi-city is fine: e.g. <code>Albany, Baltimore, Boston, San Diego, Cambridge MA, Research Triangle</code>.</li>
+    </ul>
+  </p>
+  <div style="margin-top:10px; display:flex; gap:10px">
+    <button class="btn primary">Save locations</button>
+    <a class="btn" href="{{ url_for('index') }}">Cancel</a>
+  </div>
+</form>
+
+<h2 style="margin-top:24px">Scrape coverage preview</h2>
+<p class="meta">With <b>{{ scrape_radius }} mi</b> scrape radius (tunable on the <a href="{{ url_for('limits_route') }}">Limits</a> page), the next scrape will hit these cities directly on LinkedIn / Indeed / Google Jobs:</p>
+<div class="loc-chips" style="margin:0">
+  {% for c in scrape_cities %}<span class="loc-chip">{{ c }}</span>{% else %}<span class="meta">(none — add a city above)</span>{% endfor %}
+</div>
+
+<h2 style="margin-top:24px">.env baseline (used if file is empty)</h2>
+<pre>{{ baseline | join(", ") }}</pre>
+{% endblock %}

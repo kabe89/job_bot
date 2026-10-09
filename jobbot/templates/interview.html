@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Interview Prep - {{ job.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ job.title }} <span class="muted">@ {{ job.company }}</span></h1>
+  <div style="display:flex;gap:8px">
+    <a href="{{ url_for('download_job_interview_docx', job_id=job.id) }}" class="btn primary" style="font-weight:600">📄 Download Pack (.docx)</a>
+    <form method="post"><button class="btn">Regenerate pack</button></form>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Practice</h2>
+  <div class="row">
+    <select id="mode">
+      <option value="general">General</option>
+      <option value="technical">Technical</option>
+      <option value="behavioral">Behavioral</option>
+      <option value="research">Research</option>
+      {% if contact %}
+        <option value="contact">Practice as {{ contact.name }} would ask</option>
+      {% endif %}
+    </select>
+    <button id="start-practice" class="btn primary">Start practice</button>
+  </div>
+  <div id="start-status" class="muted"></div>
+</div>
+
+<section class="panel"><h2>1. Predicted questions + tailored answers</h2>{{ prep_html|safe }}</section>
+<section class="panel"><h2>2. Company &amp; role research</h2>{{ intel_html|safe }}</section>
+<section class="panel"><h2>3. Your background -&gt; this JD</h2>{{ bridges_html|safe }}</section>
+<section class="panel"><h2>4. Questions to ask them</h2>{{ ask_html|safe }}</section>
+
+<script>
+document.getElementById('start-practice').addEventListener('click', async function () {
+  const status = document.getElementById('start-status');
+  status.textContent = 'Starting...';
+  const res = await fetch('/interview/{{ job.id }}/practice', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({mode: document.getElementById('mode').value})
+  });
+  const body = await res.json();
+  if (body.error) { status.textContent = body.error; return; }
+  window.location = '/practice/' + body.session_id;
+});
+</script>
+{% endblock %}

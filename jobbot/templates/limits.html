@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Scraper limits — JobBot{% endblock %}
+{% block content %}
+<h1>Scraper Limits</h1>
+<p class="meta">Maximum job-pull parameters per scraper. Higher values = more coverage but
+slower scrape cycles and more HTTP load. Changes are written to <code>.env</code> and applied
+live to this process.</p>
+
+<form method="post" class="filter-form" style="flex-direction:column; align-items:stretch">
+  <table class="jobs" style="background:transparent; border:0">
+    <thead><tr><th>Setting</th><th>Current</th><th>New value</th><th>Range</th></tr></thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.label }}<br><code style="color:var(--muted); font-size:11px">{{ r.name }}</code></td>
+          <td><b>{{ r.value }}</b></td>
+          <td><input type="number" name="{{ r.name }}" value="{{ r.value }}" step="{{ '0.01' if r.hi == 1 else '1' }}" min="{{ r.lo }}" max="{{ r.hi }}" style="width:8em"></td>
+          <td><span class="meta">{{ r.lo }} – {{ r.hi }}</span></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="margin-top:14px">
+    <button class="btn primary">Save limits</button>
+    <a class="btn" href="{{ url_for('limits_route') }}">Reset form</a>
+  </div>
+</form>
+{% endblock %}

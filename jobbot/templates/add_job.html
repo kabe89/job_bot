@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Add Job Manually — JobBot{% endblock %}
+{% block content %}
+<a href="{{ url_for('index') }}">&larr; Back to Jobs</a>
+<h1>Add Job Manually</h1>
+<p class="meta">Enter a job URL or paste the job details directly. JobBot will store the job and let you tailor your resume immediately.</p>
+
+<div style="max-width:760px;margin-top:16px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;padding:20px">
+  <form method="post" action="{{ url_for('job_add') }}">
+    <div style="margin-bottom:14px">
+      <label for="url" style="display:block;font-weight:600;margin-bottom:4px">Job URL / Link (optional if pasting description)</label>
+      <input type="url" id="url" name="url" placeholder="https://careers.company.com/job/12345" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font:inherit">
+      <small style="color:var(--muted);display:block;margin-top:2px">If left alone, JobBot will attempt to auto-fetch title, company, and description from this link.</small>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div>
+        <label for="title" style="display:block;font-weight:600;margin-bottom:4px">Job Title</label>
+        <input type="text" id="title" name="title" placeholder="e.g. Senior Software Engineer" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font:inherit">
+      </div>
+      <div>
+        <label for="company" style="display:block;font-weight:600;margin-bottom:4px">Company</label>
+        <input type="text" id="company" name="company" placeholder="e.g. Acme Corp, Pinnacle Systems, Apex Innovations" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font:inherit">
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label for="location" style="display:block;font-weight:600;margin-bottom:4px">Location</label>
+      <input type="text" id="location" name="location" placeholder="e.g. Austin, TX or Remote / Hybrid" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font:inherit">
+    </div>
+
+    <div style="margin-bottom:16px">
+      <label for="description" style="display:block;font-weight:600;margin-bottom:4px">Job Description (paste full text)</label>
+      <textarea id="description" name="description" rows="12" placeholder="Paste full job description text here..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font:inherit;line-height:1.4"></textarea>
+    </div>
+
+    <div style="margin-bottom:20px;padding:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
+      <span style="font-weight:600;display:block;margin-bottom:6px">Tailoring Action upon Save:</span>
+      <label style="display:inline-block;margin-right:16px;cursor:pointer">
+        <input type="radio" name="tailor_mode" value="none" checked> Just save to database
+      </label>
+      <label style="display:inline-block;margin-right:16px;cursor:pointer">
+        <input type="radio" name="tailor_mode" value="offline"> ⚡ Tailor Offline (Zero AI, instant .docx)
+      </label>
+      <label style="display:inline-block;cursor:pointer">
+        <input type="radio" name="tailor_mode" value="cloud"> 🤖 Tailor with AI (Cloud / Local)
+      </label>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button type="submit" class="btn primary" style="padding:8px 20px;font-weight:600">Save & Continue</button>
+      <a href="{{ url_for('index') }}" class="btn">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

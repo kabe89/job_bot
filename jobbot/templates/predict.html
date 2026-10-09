@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Prediction — {{ job.title }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('job_detail', job_id=job.id) }}">&larr; Back to job</a>
+<h1>Success Prediction</h1>
+<p class="meta"><b>{{ job.title }}</b> · {{ job.company }} · match {{ "%.2f"|format(job.match_score) }} · confidence: {{ p.confidence }}</p>
+
+<div class="metric-grid">
+  <div class="metric"><div class="label">P(callback)</div><div class="value">{{ "%.1f%%"|format(p.callback_probability * 100) }}</div></div>
+  <div class="metric"><div class="label">P(interview)</div><div class="value">{{ "%.1f%%"|format(p.interview_probability * 100) }}</div></div>
+  <div class="metric"><div class="label">P(offer)</div><div class="value">{{ "%.1f%%"|format(p.offer_probability * 100) }}</div></div>
+</div>
+
+<h2>Time-to-response</h2>
+<table class="jobs">
+  <thead><tr><th>Days after applying</th><th>Cumulative P(callback)</th></tr></thead>
+  <tbody>
+  {% for day, prob in p.p_by_day.items() %}
+    <tr><td>+{{ day }}</td><td>{{ "%.1f%%"|format(prob * 100) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Logit contributions (what's driving the score)</h2>
+<table class="jobs">
+  <thead><tr><th>Factor</th><th>Δ logit</th></tr></thead>
+  <tbody>
+  {% for k, v in p.logit_contributions.items() %}
+    <tr><td>{{ k }}</td><td><span class="score {{ 's8' if v > 0 else 's2' }}">{{ "+%.2f"|format(v) if v >= 0 else "%.2f"|format(v) }}</span></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if p.recommended_actions %}
+<h2>Recommended actions</h2>
+<ul>
+  {% for a in p.recommended_actions %}<li>{{ a }}</li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

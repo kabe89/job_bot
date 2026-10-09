@@ -1,0 +1,12 @@
+{
+  "systems_software": {
+    "label": "Low-Latency & Systems Software",
+    "description": "Prioritizes concurrency, memory efficiency, C++/Rust, and OS-level performance.",
+    "guidance": "TARGETING ANGLE: Systems Engineering. Prioritize low-latency architectures, systems programming (C++/Rust), OS kernel fundamentals, network protocol implementations, and memory management efficiency."
+  },
+  "cloud_devops": {
+    "label": "Cloud Infrastructure, Kubernetes & Site Reliability",
+    "description": "Prioritizes cloud architecture, infrastructure as code, containers, and resilience.",
+    "guidance": "TARGETING ANGLE: Cloud & Platform Engineering. Prioritize Kubernetes, Docker, Terraform, CI/CD orchestration, distributed monitoring/observability, and zero-downtime deployments."
+  }
+}

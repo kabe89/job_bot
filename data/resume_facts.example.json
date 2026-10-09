@@ -1,0 +1,57 @@
+{
+  "identity": {
+    "name": "Jane Doe",
+    "email": "jane.doe@example.com",
+    "phone": "+1-555-555-0199",
+    "linkedin": "https://linkedin.com/in/janedoe-example",
+    "github": "https://github.com/janedoe-example",
+    "orcid": "https://orcid.org/0000-0002-1825-0097"
+  },
+  "employment": [
+    {
+      "employer": "TechCorp Innovations",
+      "title": "Senior Computational Scientist",
+      "location": "Boston, MA",
+      "start": "2023-01",
+      "end": "Present",
+      "current": true,
+      "bullets": [
+        "Developed high-throughput molecular modeling pipelines in Python and PyTorch.",
+        "Automated end-to-end data processing for high-performance computing clusters.",
+        "Engineered scalable REST APIs and automated testing pipelines for internal analytics."
+      ]
+    },
+    {
+      "employer": "Apex Research Labs",
+      "title": "Research Associate",
+      "location": "Cambridge, MA",
+      "start": "2020-06",
+      "end": "2022-12",
+      "current": false,
+      "bullets": [
+        "Built reproducible analytics workflows utilizing open-source scientific toolkits.",
+        "Maintained laboratory data infrastructure and implemented automated regression suites.",
+        "Collaborated with multidisciplinary teams to analyze large-scale experimental datasets."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "school": "Metropolis Institute of Technology",
+      "degree": "Ph.D.",
+      "field": "Computational Science & Engineering",
+      "location": "Cambridge, MA",
+      "start": "2018-09",
+      "end": "2023-05"
+    },
+    {
+      "school": "Example State University",
+      "degree": "B.S.",
+      "field": "Computer Science & Applied Mathematics",
+      "location": "Springfield, IL",
+      "start": "2014-08",
+      "end": "2018-05"
+    }
+  ],
+  "reviewed": true
+}

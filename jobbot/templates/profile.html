@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Profile config — JobBot{% endblock %}
+{% block content %}
+<h1>Profile (AI context)</h1>
+<p class="meta">Edit free-form context that gets fed into every Gemini prompt (tailoring, cover letters, interview prep). Saved to <code>{{ path }}</code>. Markdown supported.</p>
+<form method="post">
+  <textarea name="content" rows="34" class="profile-edit">{{ content }}</textarea>
+  <div style="margin-top:12px"><button class="btn primary">Save profile</button></div>
+</form>
+{% endblock %}

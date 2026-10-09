@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <h1>{{ thread.subject or "Conversation" }}</h1>
+  <p class="muted">
+    With {{ thread.counterpart_name or "unknown" }}
+    {% if thread.counterpart_email %}&lt;{{ thread.counterpart_email }}&gt;{% endif %}
+    &middot; {{ thread.status }}
+  </p>
+  <a class="btn" href="{{ url_for('outreach_page') }}">&larr; Back to queue</a>
+</section>
+
+<section class="card">
+  <h2>Situation</h2>
+  <p>{{ thread.scenario or "No scenario recorded." }}</p>
+  <p class="muted">Edit with <code>jobbot convo scenario {{ thread.id }} --set "..."</code></p>
+</section>
+
+<section class="card">
+  <h2>History <span class="badge">{{ rows|length }}</span></h2>
+  {% if not rows %}
+    <p class="muted">No messages yet.</p>
+  {% endif %}
+  {% for r in rows %}
+    <div class="msg {{ r.direction }}">
+      <p class="muted">
+        {{ "Sent" if r.direction == "sent" else "Received" }}
+        &middot; {{ r.at.strftime("%Y-%m-%d") }}
+      </p>
+      <pre style="white-space:pre-wrap">{{ r.text }}</pre>
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

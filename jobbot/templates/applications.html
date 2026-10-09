@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Applications</h1>
+{% if insights %}
+<section class="cc-panel">
+  <h2>What's responding</h2>
+  <div class="metric-grid">
+    {% for dim, rows in insights.items() %}
+      {% if rows %}
+      <div class="metric">
+        <div class="label">{{ dim }}</div>
+        {% for r in rows[:3] %}
+          <div class="meta">{{ r.value }} — {{ (r.response_rate*100)|round|int }}%
+            <span class="tag">{{ r.responses }}/{{ r.trials }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+<table class="jobs">
+  <thead><tr><th>#</th><th>Job</th><th>Company</th><th>Status</th><th>Sent</th><th>Files</th><th>Outcome</th></tr></thead>
+  <tbody>
+  {% for app in applications %}
+    <tr>
+      <td>{{ app.id }}</td>
+      {% if app.job %}
+      <td><a href="{{ url_for('job_detail', job_id=app.job.id) }}">{{ app.job.title }}</a></td>
+      <td>{{ app.job.company }}</td>
+      {% else %}
+      <td class="empty">(job deleted)</td>
+      <td>—</td>
+      {% endif %}
+      <td><span class="status status-{{ app.status }}">{{ app.status }}</span></td>
+      <td>{{ app.sent_at|localdt("%Y-%m-%d") or "—" }}</td>
+      <td>
+        {% if app.tailored_resume_path %}
+          <a href="{{ url_for('download_app_docx', app_id=app.id) }}" style="font-weight:600" title="Download Word (.docx)">resume.docx</a>
+          <span style="font-size:0.8em;color:var(--muted)">(<a href="{{ url_for('download', filename=app.tailored_resume_path.replace('\\','/')) }}">raw</a>)</span>
+        {% endif %}
+        {% if app.cover_letter_path %}
+          {% if app.tailored_resume_path %} · {% endif %}
+          <a href="{{ url_for('download_app_cover_docx', app_id=app.id) }}" style="font-weight:600" title="Download Word (.docx)">cover.docx</a>
+          <span style="font-size:0.8em;color:var(--muted)">(<a href="{{ url_for('download', filename=app.cover_letter_path.replace('\\','/')) }}">txt</a>)</span>
+        {% endif %}
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('application_outcome', application_id=app.id) }}"
+              style="display:inline">
+          {% for s in stages %}
+            <button class="btn" name="stage" value="{{ s }}">{{ s }}</button>
+          {% endfor %}
+          {% for s in terminal %}
+            <button class="btn" name="stage" value="{{ s }}">{{ s }}</button>
+          {% endfor %}
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="empty">No applications yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

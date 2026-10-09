@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}JobBot{% endblock %}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script>
+  // No-flash theme init: run before paint. Default dark; honor OS pref on
+  // first visit; persist explicit choice in localStorage.
+  (function(){
+    try {
+      var t = localStorage.getItem('jb-theme');
+      if (!t) t = (window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch(e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  })();
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><a href="{{ url_for('index') }}">⚡ <span>JobBot</span></a></div>
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-label">Find</div>
+        <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}">Jobs</a>
+        <a href="{{ url_for('job_add') }}" class="{{ 'active' if request.endpoint == 'job_add' else '' }}">➕ Add Job</a>
+        <a href="{{ url_for('discover_page') }}">Discover</a>
+        <a href="{{ url_for('search_builder') }}">Search ext.</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Apply</div>
+        <a href="{{ url_for('kanban_route') }}" class="{{ 'active' if request.endpoint == 'kanban_route' else '' }}">Kanban Board</a>
+        <a href="{{ url_for('apply_queue_page') }}">Apply Queue</a>
+        <a href="{{ url_for('auto_apply_route') }}">Auto-apply</a>
+        <a href="{{ url_for('applications') }}">Applications</a>
+        <a href="{{ url_for('followups_page') }}">Follow-ups</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">You</div>
+        <a href="{{ url_for('chat_page') }}" class="{{ 'active' if request.endpoint == 'chat_page' else '' }}">🤖 AI Advisor</a>
+        <a href="{{ url_for('profile') }}">Profile</a>
+        <a href="{{ url_for('contacts_page') }}">Contacts</a>
+        <a href="{{ url_for('outreach_page') }}" class="{{ 'active' if request.endpoint == 'outreach_page' else '' }}">Outreach</a>
+        <a href="{{ url_for('interviews') }}" class="{{ 'active' if request.endpoint == 'interviews' else '' }}">Interviews</a>
+        <a href="{{ url_for('skills_route') }}">Skills</a>
+        <a href="{{ url_for('advice') }}">Resume Advice</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Tune</div>
+        <a href="{{ url_for('locations_route') }}">Locations</a>
+        <a href="{{ url_for('tags_route') }}">Tags</a>
+        <a href="{{ url_for('limits_route') }}">Limits</a>
+        <a href="{{ url_for('models_route') }}">Models</a>
+        <a href="{{ url_for('forecast_route') }}">Forecast</a>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="nav-toggle" type="button" aria-label="Toggle menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+      <div class="spacer"></div>
+      <button class="theme-toggle" type="button" aria-label="Toggle theme"
+              onclick="(function(){var d=document.documentElement;var n=d.getAttribute('data-theme')==='light'?'dark':'light';d.setAttribute('data-theme',n);try{localStorage.setItem('jb-theme',n);}catch(e){}})()">
+        <span class="t-dark">🌙</span><span class="t-light">☀</span>
+      </button>
+      <form method="post" action="{{ url_for('scrape') }}" style="display:inline">
+        <button class="btn primary" type="submit" id="scrape-now-btn">⚡ Scrape Now</button>
+      </form>
+      <form method="post" action="{{ url_for('liveness_sweep') }}" style="display:inline;margin-left:6px">
+        <button class="btn" type="submit" id="check-liveness-btn" title="Probe active job postings and soft-expire dead ones">🔍 Check Liveness</button>
+      </form>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="flashes">
+        {% for category, msg in messages %}
+          <div class="flash {{ category }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+
+    <div id="jobbot-bg-tasks" style="display:none;margin:12px 16px 0 16px;padding:12px 16px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius-sm)">
+      <div id="task-scrape-status" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:600;font-size:0.88rem">⚡ Scraping: <span id="scrape-current" style="color:var(--primary);font-family:monospace">Starting...</span></span>
+          <span id="scrape-counts" style="font-size:0.82rem;color:var(--text-muted)">0 / 0 scrapers (0 jobs found)</span>
+        </div>
+        <div style="width:100%;height:8px;background:var(--bg-card);border-radius:4px;overflow:hidden;border:1px solid var(--border)">
+          <div id="scrape-bar" style="width:0%;height:100%;background:var(--primary);transition:width 0.3s ease"></div>
+        </div>
+        <div id="scrape-log" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+
+      <div id="task-liveness-status" style="display:none;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:600;font-size:0.88rem">🔍 Liveness sweep: <span id="liveness-state" style="color:var(--accent);font-family:monospace">Probing...</span></span>
+          <span id="liveness-counts" style="font-size:0.82rem;color:var(--text-muted)">0 / 0 checked (0 expired, 0 alive)</span>
+        </div>
+        <div style="width:100%;height:8px;background:var(--bg-card);border-radius:4px;overflow:hidden;border:1px solid var(--border)">
+          <div id="liveness-bar" style="width:0%;height:100%;background:#e07a5f;transition:width 0.3s ease"></div>
+        </div>
+      </div>
+    </div>
+
+    <main>{% block content %}{% endblock %}</main>
+    <footer>JobBot v1.0 — local automation</footer>
+  </div>
+</div>
+<script>
+(function() {
+  var pollInterval = null;
+  function updateBgTasks() {
+    var p1 = fetch('{{ url_for("scrape_status") }}').then(function(r){ return r.json(); }).catch(function(){ return null; });
+    var p2 = fetch('{{ url_for("liveness_status") }}').then(function(r){ return r.json(); }).catch(function(){ return null; });
+
+    Promise.all([p1, p2]).then(function(results) {
+      var s = results[0];
+      var l = results[1];
+      var panel = document.getElementById('jobbot-bg-tasks');
+      var sBox = document.getElementById('task-scrape-status');
+      var lBox = document.getElementById('task-liveness-status');
+      if (!panel || !sBox || !lBox) return;
+
+      var hasActive = false;
+
+      if (s && s.state === 'running') {
+        hasActive = true;
+        sBox.style.display = 'block';
+        document.getElementById('scrape-current').textContent = s.current || 'Initializing...';
+        document.getElementById('scrape-counts').textContent = s.done + ' / ' + s.total + ' scrapers (' + s.jobs_found + ' jobs found)';
+        document.getElementById('scrape-bar').style.width = (s.percent || 0) + '%';
+        if (s.log_lines && s.log_lines.length > 0) {
+          document.getElementById('scrape-log').textContent = s.log_lines[s.log_lines.length - 1];
+        }
+      } else {
+        sBox.style.display = 'none';
+      }
+
+      if (l && l.state === 'running') {
+        hasActive = true;
+        lBox.style.display = 'block';
+        document.getElementById('liveness-state').textContent = l.checked + ' of ' + (l.total || '?');
+        document.getElementById('liveness-counts').textContent = l.checked + ' / ' + l.total + ' checked (' + l.expired + ' expired, ' + l.alive + ' alive, ' + l.errors + ' errors)';
+        document.getElementById('liveness-bar').style.width = (l.percent || 0) + '%';
+      } else {
+        lBox.style.display = 'none';
+      }
+
+      panel.style.display = hasActive ? 'block' : 'none';
+
+      if (!hasActive && pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        setTimeout(updateBgTasks, 15000);
+      }
+    });
+  }
+
+  updateBgTasks();
+  pollInterval = setInterval(updateBgTasks, 2000);
+})();
+</script>
+</body>
+</html>

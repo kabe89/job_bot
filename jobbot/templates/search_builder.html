@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Search builder — JobBot{% endblock %}
+{% block content %}
+<h1>External Job Search</h1>
+<p class="meta">Build deep-links into LinkedIn, Glassdoor, Indeed, Google Jobs, TechCareers, USAJobs, etc.
+JobBot pulls many of these automatically — these links open the live search in your browser for ad-hoc browsing.</p>
+
+<form method="get" class="filter-form">
+  <label>Keywords
+    <input type="text" name="keywords" value="{{ keywords }}" size="40">
+  </label>
+  <label>Location
+    <input type="text" name="location" value="{{ location }}" size="30">
+  </label>
+  <button class="btn primary">Rebuild links</button>
+</form>
+
+<div class="link-grid">
+  {% for name, url in links.items() %}
+    <a class="link-card" href="{{ url }}" target="_blank" rel="noopener">
+      <div class="link-name">{{ name }}</div>
+      <div class="link-url">{{ url[:80] }}{% if url|length > 80 %}…{% endif %}</div>
+    </a>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Contacts — JobBot{% endblock %}
+{% block content %}
+<div class="bar"><h1>Contacts ({{ contacts|length }})</h1></div>
+
+<section class="cc-panel">
+  <form method="post" action="{{ url_for('contacts_discover') }}" style="display:inline">
+    <input type="text" name="company" placeholder="company (blank = top companies)">
+    <button class="btn primary">Discover contacts</button>
+  </form>
+</section>
+
+<form method="post" action="{{ url_for('contact_add') }}" class="filter-form">
+  <label>Name<input type="text" name="name" required></label>
+  <label>Company<input type="text" name="company"></label>
+  <label>Title<input type="text" name="title"></label>
+  <label>Relationship
+    <select name="relationship">
+      {% for r in ['colleague','alum','pi','recruiter','unknown'] %}
+        <option value="{{ r }}">{{ r }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>LinkedIn<input type="text" name="linkedin"></label>
+  <label class="checkbox"><input type="checkbox" name="pinned"> Pin</label>
+  <button class="btn primary">Add contact</button>
+</form>
+
+<table class="jobs">
+  <thead><tr><th>Warm</th><th>Name</th><th>Company</th><th>Title</th>
+    <th>Relationship</th><th>Source</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for c in contacts %}
+    <tr>
+      <td>{{ '📌' if c.pinned else '' }}</td>
+      <td>{{ c.name }}{% if c.linkedin %} <a href="{{ c.linkedin }}" target="_blank" rel="noopener">↗</a>{% endif %}</td>
+      <td>{{ c.company }}</td><td>{{ c.title }}</td>
+      <td><span class="tag">{{ c.relationship }}</span></td>
+      <td><span class="tag">{{ c.source }}</span></td>
+      <td>
+        <form method="post" action="{{ url_for('contact_pin', cid=c.id) }}" style="display:inline">
+          <button class="btn">{{ 'Unpin' if c.pinned else 'Pin' }}</button></form>
+        <form method="post" action="{{ url_for('contact_delete', cid=c.id) }}" style="display:inline">
+          <button class="btn">Delete</button></form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="empty">No contacts yet. Add one or run discovery.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

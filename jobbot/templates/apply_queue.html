@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Apply Queue — JobBot{% endblock %}
+{% block content %}
+<h1>Apply Queue</h1>
+<p class="meta">Your best-odds jobs with ready-to-submit application kits.</p>
+
+{% if needs_you %}
+<div class="panel" style="border-left:3px solid var(--warn);margin-bottom:20px">
+  <strong>{{ needs_you }} question{{ '' if needs_you == 1 else 's' }} need you</strong>
+  across {{ kits_needing_you }} kit{{ '' if kits_needing_you == 1 else 's' }}.
+  <span class="meta">The bot leaves a question blank rather than guessing at it —
+  open a kit below to fill these in, or run
+  <code>jobbot apply-fill</code> to answer them all in the terminal.</span>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('apply_queue_build') }}" style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+  <label style="display:flex;align-items:center;gap:8px;margin:0">
+    Build kits for top
+    <input type="number" name="count" min="1" max="10" value="3"
+           style="width:64px;background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font:inherit">
+    jobs
+  </label>
+  <button class="btn primary"
+          onclick="this.disabled=true;this.textContent='Working… (~30-60s per job)';this.form.submit()"
+          title="Warning: this fires AI calls and may take 30-60 seconds per job">
+    Build kits
+  </button>
+  <span class="meta" style="color:var(--warn)">&#9888; Slow — runs AI for each job</span>
+</form>
+
+{% if rows %}
+<table class="jobs">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Company</th>
+      <th>P(callback)</th>
+      <th>Source</th>
+      <th>Questions</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td>
+        <a href="{{ url_for('job_detail', job_id=row.job_id) }}">{{ row.title }}</a>
+      </td>
+      <td>{{ row.company }}</td>
+      <td>{{ "%.1f%%"|format(row.p_callback * 100) }}</td>
+      <td>
+        {% if row.source and row.source.lower() in ('greenhouse', 'lever', 'ashby', 'html') %}
+          <span class="tag" style="background:var(--ok-bg);color:var(--ok);border-color:var(--ok)">{{ row.source }}</span>
+        {% else %}
+          <span class="tag" style="background:var(--bg-elev);color:var(--muted);border-color:var(--border)">{{ row.source or 'common' }}</span>
+        {% endif %}
+      </td>
+      <td>{{ row.questions }}</td>
+      <td>
+        {% if row.ready %}
+          <span class="status" style="background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok);padding:2px 8px;border-radius:10px;font-size:0.8em;white-space:nowrap">READY</span>
+        {% else %}
+          <span class="status" title="{{ row.unanswered }} unanswered, {{ row.unconfirmed }} awaiting your confirmation" style="background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);padding:2px 8px;border-radius:10px;font-size:0.8em;white-space:nowrap">{{ row.blanks }} need you</span>
+        {% endif %}
+      </td>
+      <td style="white-space:nowrap;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <a class="btn" href="{{ url_for('apply_kit', job_id=row.job_id) }}">&#128203; Open kit</a>
+        {% if row.url %}
+        <a class="btn" href="{{ row.url }}" target="_blank" rel="noopener">&#8599; Open form</a>
+        {% endif %}
+        <form method="post"
+              action="{{ url_for('apply_queue_mark_applied', application_id=row.application_id) }}"
+              style="display:inline"
+              onsubmit="return confirm('Mark this application as applied?')">
+          <button class="btn" style="background:var(--ok-bg);color:var(--ok);border-color:var(--ok)" type="submit">&#10003; Mark applied</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">Queue is empty — click Build, or run <code>jobbot apply-queue --build 5</code>.</p>
+{% endif %}
+{% endblock %}

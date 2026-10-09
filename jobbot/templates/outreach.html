@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <h1>Outreach queue</h1>
+  <p class="muted">Auto-drafted messages. Nothing sends until you approve. {{ total }} in queue.</p>
+  <form method="post" action="{{ url_for('outreach_scan') }}" style="display:inline">
+    <button class="btn primary">🔄 Refresh queue (scan)</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Draft a reply</h2>
+  <form method="post" action="{{ url_for('outreach_reply') }}">
+    <label>Sender email (optional)
+      <input type="text" name="sender" placeholder="jane@acme.com">
+    </label>
+    <label>Paste the email you received
+      <textarea name="inbound" rows="5" placeholder="Paste the received email here…"></textarea>
+    </label>
+    <button class="btn">✍️ Draft reply</button>
+  </form>
+</section>
+
+{% set labels = {'warm_intro': '🤝 Warm intros', 'follow_up': '↩️ Follow-ups',
+                 'cold': '❄️ Cold outreach', 'reply': '✉️ Replies'} %}
+{% for kind, drafts in grouped.items() %}
+  {% if drafts %}
+  <section class="card">
+    <h2>{{ labels.get(kind, kind) }} <span class="badge">{{ drafts|length }}</span></h2>
+    {% for d in drafts %}
+    <div class="draft {{ 'approved' if d.status=='approved' else '' }}">
+      <div class="draft-meta">
+        <strong>{{ d.recipient_email or '(no recipient — copy/paste only)' }}</strong>
+        <span class="tag">{{ d.status }}</span>
+        {% if d.thread_id %}
+          <a class="badge" href="{{ url_for('thread_page', tid=d.thread_id) }}">thread {{ d.thread_id }}</a>
+        {% endif %}
+        <span class="muted">{{ d.rationale }}</span>
+      </div>
+      <form method="post" action="{{ url_for('outreach_edit', did=d.id) }}">
+        <input type="text" name="subject" value="{{ d.subject }}" style="width:100%">
+        <textarea name="body" rows="6" style="width:100%">{{ d.body }}</textarea>
+        <button class="btn">💾 Save edits</button>
+      </form>
+      <div class="draft-actions">
+        {% if d.status != 'approved' %}
+        <form method="post" action="{{ url_for('outreach_approve', did=d.id) }}" style="display:inline">
+          <button class="btn primary">✔ Approve</button>
+        </form>
+        {% endif %}
+        {% if d.status == 'approved' and d.recipient_email %}
+        <form method="post" action="{{ url_for('outreach_send', did=d.id) }}" style="display:inline">
+          <button class="btn primary">📧 Send</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('outreach_dismiss', did=d.id) }}" style="display:inline">
+          <button class="btn">🗑 Dismiss</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+{% endfor %}
+
+{% if total == 0 %}
+<p class="muted">Queue is empty. Click “Refresh queue” to auto-draft outreach, or paste an email above to draft a reply.</p>
+{% endif %}
+{% endblock %}

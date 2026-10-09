@@ -1,0 +1,60 @@
+# ==============================================================================
+# JobBot Production & Runtime Requirements
+# ==============================================================================
+
+# Core framework and configuration
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+
+# Database & persistence
+sqlalchemy>=2.0.25
+
+# Web application & dashboard
+flask>=3.0.0
+werkzeug>=3.0.0
+jinja2>=3.1.2
+apscheduler>=3.10.4
+
+# Networking & HTTP
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+feedparser>=6.0.10
+tenacity>=8.2.3
+truststore>=0.9.0; sys_platform == 'win32'
+
+# Security & OS Keyring credential storage
+keyring>=24.0.0
+
+# Math, Vector & Embedding operations
+numpy>=1.24.0
+
+# Document generation & parsing
+markdown>=3.5.1
+pdfplumber>=0.10.3
+python-docx>=1.1.0
+reportlab>=4.0.7
+
+# Audio narration & podcasts
+edge-tts>=6.1.0
+
+# CLI & terminal UI
+click>=8.1.7
+rich>=13.7.0
+
+# Scrapers & search
+python-jobspy>=0.4.1
+ddgs>=6.0.0
+
+# AI inference providers (Ollama runs locally via HTTP; cloud SDKs optional)
+anthropic>=0.69.0
+google-genai>=1.0.0
+
+# Browser automation & inspection
+playwright>=1.44.0
+
+# Testing & Quality Assurance
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-xdist>=3.5.0

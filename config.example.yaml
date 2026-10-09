@@ -1,0 +1,132 @@
+# ==============================================================================
+# JobBot - Centralized Configuration Template (config.example.yaml)
+# ==============================================================================
+# Copy this file to `config.yaml` to configure your preferences.
+# Sensitive API keys and passwords can either be placed in `.env` or passed via
+# environment variables.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Candidate Identity & Profile
+# ------------------------------------------------------------------------------
+# Default identity used across resume tailoring, outreach, and application kits.
+applicant_name: "Jane Doe"
+applicant_title: "Senior Software Engineer / Computational Scientist"
+applicant_location: "Boston, MA"
+applicant_phone: "+1-555-555-0199"
+applicant_email: "jane.doe@example.com"
+applicant_linkedin: "https://linkedin.com/in/janedoe-example"
+applicant_github: "https://github.com/janedoe-example"
+applicant_portfolio: "https://orcid.org/0000-0002-1825-0097"
+
+# ------------------------------------------------------------------------------
+# 2. Search & Target Filtering
+# ------------------------------------------------------------------------------
+# Comma-separated search queries and locations
+search_keywords: "software engineer, computational scientist, data engineer, machine learning"
+search_locations: "Boston, MA, Cambridge, MA, New York, NY, remote, hybrid"
+search_exclude: "intern, undergraduate, high school, sales, marketing, recruiter"
+search_exclude_title: "freelance, freelancer, contractor, independent contractor, 1099, c2c, gig work"
+
+# Thresholds for relevance matching and LLM ranking
+min_match_score: 0.35
+semantic_ranking_enabled: true
+rerank_enabled: true
+rerank_top_k: 20
+semantic_recall_threshold: 0.55
+schedule_interval_hours: 6
+
+# ------------------------------------------------------------------------------
+# 3. AI Providers & Model Routing
+# ------------------------------------------------------------------------------
+# Provider priority: ollama (local/offline/free) | claude | gemini | auto
+ai_provider: "ollama"
+
+# Local Ollama Configuration (Zero cost, offline, zero data leakage)
+ollama_host: "http://localhost:11434"
+ollama_model: "qwen3.5:latest"
+ollama_embed_model: "nomic-embed-text"
+ollama_timeout: 300
+ollama_num_ctx: 16384
+ollama_num_predict: 4096
+ollama_think: false
+ollama_refine_rounds: 2
+ollama_refine_target_score: 0.90
+ollama_autostart: true
+ollama_autostart_pull: true
+
+# Cloud Providers (Optional fallback / alternative)
+gemini_model: "gemini-3-flash-preview"
+gemini_fallback_model: "gemini-2.5-flash"
+gemini_fallback_chain: "gemini-2.5-flash,gemini-3.1-flash-lite-preview"
+gemini_skip_on_error: true
+
+claude_model: "claude-opus-4-8"
+claude_fallback_model: "claude-sonnet-4-6"
+claude_effort: "high"
+claude_max_tokens: 16000
+
+# ------------------------------------------------------------------------------
+# 4. Self-Contained Relative Paths
+# ------------------------------------------------------------------------------
+# All paths resolve relative to the repository root. No absolute paths required.
+db_path: "data/jobbot.db"
+base_resume_path: "data/base_resume.md"
+resume_facts_path: "data/resume_facts.json"
+resume_template_path: "data/resume_template.md"
+company_watchlist: "data/companies.md"
+profile_path: "data/profile.md"
+skills_path: "data/skills.md"
+candidate_profile_path: "data/candidate_profile.json"
+discovery_pending_path: "data/discovered_pending.json"
+output_dir: "output"
+log_path: "logs/jobbot.log"
+
+# ------------------------------------------------------------------------------
+# 5. Screening Question Defaults (Standard Form Answers)
+# ------------------------------------------------------------------------------
+work_authorized: "Yes"
+requires_sponsorship: "No"
+salary_expectation: "Open to discussion"
+earliest_start_date: "Two weeks from offer"
+willing_onsite: "Yes"
+willing_relocate: "Open to discussion"
+how_heard: "Company careers site"
+answer_bank_path: "data/answer_bank.json"
+answer_memory_path: "data/answer_memory.json"
+personal_info_path: "data/My Information.txt"
+
+# ------------------------------------------------------------------------------
+# 6. Auto-Apply Subsystem (⚠️ EXPERIMENTAL / IN ACTIVE DEVELOPMENT)
+# ------------------------------------------------------------------------------
+# WARNING: Automated application submission is in alpha and under active development.
+# Keep auto_apply and browser_apply_autosubmit set to false.
+# Use headed mode (playwright_headed: true) to review auto-filled forms in person
+# before submitting manually.
+auto_apply: false
+browser_apply_autosubmit: false
+playwright_headed: true
+apply_rate_limit_per_day: 25
+web_apply_decision_timeout: 900
+evidence_dir: "output/evidence"
+ats_escalation_enabled: true
+
+# ------------------------------------------------------------------------------
+# 7. Networking & Contact Discovery
+# ------------------------------------------------------------------------------
+contacts_max_per_job: 3
+contacts_autofind: true
+auto_prefetch_contacts: 0
+referral_bonus_cap: 0.15
+referral_discover_max: 15
+contacts_max_per_company: 5
+outreach_enabled: true
+outreach_cold_max: 10
+outreach_max_per_scan: 25
+
+# ------------------------------------------------------------------------------
+# 8. Web Dashboard & Local Server
+# ------------------------------------------------------------------------------
+dashboard_host: "127.0.0.1"
+dashboard_port: 5000
+dashboard_secret: "change-this-secret-key-for-local-session"

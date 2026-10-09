@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Company Discovery</h1>
+<form method="post" action="{{ url_for('discover_run') }}" style="display:inline">
+  <input type="hidden" name="kind" value="harvest">
+  <button type="submit">Run harvest</button>
+</form>
+<form method="post" action="{{ url_for('discover_run') }}" style="display:inline">
+  <input type="hidden" name="kind" value="discovery">
+  <button type="submit">Run discovery (web + LLM)</button>
+</form>
+{% if run.running %}<p><em>A {{ run.kind }} run is in progress…</em></p>{% endif %}
+
+{% if not rows %}
+  <p>No pending discoveries. Run harvest or discovery above.</p>
+{% else %}
+<table border="1" cellpadding="6">
+  <tr><th>Fit</th><th>Board</th><th>Company</th><th>Jobs</th><th>Source</th><th>Why</th><th>Actions</th></tr>
+  {% for t in rows %}
+  <tr>
+    <td>{{ "%.2f"|format(t.fit_score) }}</td>
+    <td>{{ t.provider }}:{{ t.key }}</td>
+    <td>{{ t.display_name }}</td>
+    <td>{{ t.job_count }}</td>
+    <td>{{ t.source }}</td>
+    <td>{{ t.fit_reason }}</td>
+    <td>
+      {% set coord = t.provider ~ ":" ~ t.key %}
+      <form method="post" action="{{ url_for('discover_action', action='approve') }}" style="display:inline">
+        <input type="hidden" name="coord" value="{{ coord }}"><button type="submit">Approve</button></form>
+      <form method="post" action="{{ url_for('discover_action', action='approve_watchlist') }}" style="display:inline">
+        <input type="hidden" name="coord" value="{{ coord }}"><button type="submit">Approve+Watchlist</button></form>
+      <form method="post" action="{{ url_for('discover_action', action='reject') }}" style="display:inline">
+        <input type="hidden" name="coord" value="{{ coord }}"><button type="submit">Reject</button></form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

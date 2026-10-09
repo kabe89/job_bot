@@ -1,0 +1,30 @@
+# Ignore all personal candidate databases, logs, and private profiles
+*.db
+*.db*
+*.bak*
+*.log
+profiles/
+output/
+
+# Ignore personal instance data files (use *.example.* templates instead)
+resume_facts.json
+candidate_profile.json
+profile_context.py
+user_prefs.json
+companies.md
+ats_targets.txt
+workday_targets.txt
+user_locations.txt
+user_tags.txt
+workday_accounts.json
+answer_bank.json
+answer_memory.json
+skill_embeddings_cache.json
+discovered_pending.json
+base_resume.*
+profile.md
+
+# Allow git to track example files and template
+!.gitignore
+!*.example.*
+!resume_template.md

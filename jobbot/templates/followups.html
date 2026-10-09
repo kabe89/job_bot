@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Follow-ups — JobBot{% endblock %}
+{% block content %}
+<h1>Follow-up Nudges</h1>
+<p class="meta">Applications awaiting a follow-up after {{ followup_after_days }} days of silence.</p>
+
+{% if rows %}
+<p class="meta" style="margin-bottom:16px">
+  {{ rows|length }} application{{ 's' if rows|length != 1 else '' }} due for a follow-up.
+</p>
+
+{% for row in rows %}
+<div class="app-card" style="margin-bottom:20px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+    <div>
+      <b style="font-size:1.05em">
+        <a href="{{ url_for('job_detail', job_id=row.job_id) }}">{{ row.title }}</a>
+      </b>
+      <span class="meta"> @ {{ row.company }}</span>
+    </div>
+    <div class="meta" style="white-space:nowrap">
+      Applied {{ row.days_since_sent }} day{{ 's' if row.days_since_sent != 1 else '' }} ago
+      &middot;
+      {% if row.followup_count == 0 %}
+        <span style="color:var(--ok)">First follow-up</span>
+      {% else %}
+        <span style="color:var(--warn)">Follow-up #{{ row.followup_count + 1 }} (final)</span>
+      {% endif %}
+      &middot;
+      <span style="color:var(--err)">{{ row.days_since_touch }}d overdue</span>
+    </div>
+  </div>
+
+  <div style="margin:10px 0 6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <label style="font-size:0.9em;color:var(--muted);margin:0">Contact email:</label>
+    {% set form_id = "form-send-" ~ row.application_id %}
+    <input type="text" value="{{ row.contact_email }}" name="to_email" form="{{ form_id }}"
+           id="email-{{ row.application_id }}"
+           placeholder="recruiter@company.com"
+           style="width:260px;background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 9px;font:inherit;font-size:0.9em">
+    {% if not row.contact_email %}
+      <span class="meta" style="color:var(--warn);font-size:0.85em">&#9888; No contact found — enter manually</span>
+    {% endif %}
+  </div>
+
+  <div style="margin:12px 0 6px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span class="meta" style="font-size:0.85em">Draft email body</span>
+      <button type="button" class="btn"
+              style="font-size:0.8em;padding:3px 10px"
+              onclick="copyDraft(this, 'draft-{{ row.application_id }}')">Copy draft</button>
+    </div>
+    <textarea id="draft-{{ row.application_id }}" rows="9" readonly
+              style="width:100%;background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font:0.85em/1.55 'Courier New',monospace;resize:vertical;box-sizing:border-box">{{ row.draft_body }}</textarea>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+    <form method="post"
+          action="{{ url_for('followup_mark', application_id=row.application_id) }}"
+          style="display:inline"
+          onsubmit="return confirm('Mark this application as followed up (without sending email)?')">
+      <button class="btn" type="submit" style="background:var(--bg-elev);border-color:var(--border)">
+        Mark followed up
+      </button>
+    </form>
+
+    <form id="{{ form_id }}" method="post"
+          action="{{ url_for('followup_send', application_id=row.application_id) }}"
+          style="display:inline"
+          onsubmit="return confirmSend(this)">
+      <input type="hidden" name="to_email" id="hidden-email-{{ row.application_id }}" value="{{ row.contact_email }}">
+      <button class="btn primary" type="submit">
+        Send email
+      </button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="empty" style="margin-top:40px;text-align:center;padding:40px 20px">
+  <p style="font-size:1.1em">Nothing due &mdash; applications get a follow-up nudge after {{ followup_after_days }} days.</p>
+  <p class="meta">Check back once your sent applications age past {{ followup_after_days }} days without a reply.</p>
+</div>
+{% endif %}
+
+<script>
+function copyDraft(btn, textareaId) {
+  var ta = document.getElementById(textareaId);
+  if (!ta) return;
+  navigator.clipboard.writeText(ta.value).then(function() {
+    var old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(function() { btn.textContent = old; }, 1400);
+  }).catch(function() {
+    ta.select();
+    document.execCommand('copy');
+    var old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(function() { btn.textContent = old; }, 1400);
+  });
+}
+
+function confirmSend(form) {
+  // Sync the visible input value into the hidden field before submit
+  var appId = form.id.replace('form-send-', '');
+  var visibleInput = document.getElementById('email-' + appId);
+  var hiddenInput = document.getElementById('hidden-email-' + appId);
+  if (visibleInput && hiddenInput) {
+    hiddenInput.value = visibleInput.value.trim();
+  }
+  var to = hiddenInput ? hiddenInput.value : '';
+  if (!to) {
+    alert('Please enter a contact email address before sending.');
+    return false;
+  }
+  return confirm('Send follow-up email to ' + to + '?');
+}
+</script>
+{% endblock %}
